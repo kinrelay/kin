@@ -20,7 +20,7 @@ Kin 想維持這種 **context continuity**，但不要求使用者持續發文�
 
 概念上：
 
-`Digital Footprints → AI Curated Context → Permissioned Friendship Context → Better Human Conversation`
+`Authorized Activity Signals → Derived Context Candidates → Permissioned Friendship Context → Better Human Conversation`
 
 Kin 的目標不是讓使用者把更多注意力留在產品裡，而是降低理解朋友近況的成本，增加自然對話發生的機會。
 
@@ -261,13 +261,15 @@ AI 是 adapter capability，不是 domain truth 的來源。
 - stable user identity
 - Kin 必要的 profile-level information
 - account lifecycle state
-- 非 friendship-specific 的 user preferences
+- account / profile-level preferences，例如顯示名稱、語言或 locale 等；不包含 Privacy & Sharing 或 Notification 各自擁有的 policy / delivery preferences
 
 **Does not own**
 
 - friendship state
 - provider-specific OAuth internals
 - relationship-specific privacy
+- sharing / disclosure preferences
+- notification cadence / channel preferences
 - derived social context
 
 **Classification hypothesis**
@@ -364,7 +366,7 @@ Core 或 Supporting Domain。需等真實 ingestion use cases 出現後再重新
 **重要 invariants**
 
 - Raw provider output 不能直接成為 domain Context。
-- Provider / LLM output 必須先 normalization + validation，再進入 domain。
+- Provider / LLM output 必須先由對應 adapter normalization + validation，轉成 inner contract 後，才可回到 application / domain flow。
 - 一個 raw action 不應自動等於一個 context item。
 
 **Classification hypothesis**
@@ -401,6 +403,7 @@ Core Domain。
 - 沒有 permission 不等於有 permission。
 - Derived context 可分享，不代表 raw activity 也能分享。
 - Disclosure decision 必須是 relationship-specific。
+- 已排程但尚未發送的 disclosure intent，不得把過去的 approval 視為永久有效；若 owner 在 delivery 前撤銷或降低分享權限，pending intent 必須被取消或在 dispatch 前重新驗證。
 
 **Classification hypothesis**
 
@@ -510,6 +513,10 @@ Generic / Supporting Domain。
 - context 是否有 semantic meaning
 - friendship state
 
+**重要原則**
+
+Notification 不自行重新解讀 privacy；若 notification 可能延遲發送，application orchestration 必須在 dispatch 前透過 Privacy & Sharing 重新確認 disclosure 仍有效，或在 revocation 發生時取消 pending intent。
+
 **Classification hypothesis**
 
 Generic / Supporting Domain。
@@ -536,23 +543,23 @@ Context 存在，不代表 friend 就能看到。必須把 relevant Friendship �
 
 ### Friend Pulse
 
-`Visible Context + Relevance → Friend Pulse`
+`Context Projection + Relevance → Friend Pulse`
 
-只有已經通過 privacy projection 的 context 才能進 ranking。
+只有已經通過 privacy projection 的 Context Projection 才能進 ranking。
 
 Relevance 不可 bypass privacy。
 
 ### Conversation support
 
-`Friend Pulse / Visible Context → Conversation / Interaction`
+`Friend Pulse / Context Projection → Conversation / Interaction`
 
-Conversation support 只能使用使用者原本就有權看到的 context，不可透過 prompt 重新暴露更敏感的內容。
+Conversation support 只能使用使用者原本就有權看到的 Context Projection，不可透過 prompt 重新暴露更敏感的內容。
 
 ### Notification
 
-`Relevant Product Intent → Notification`
+`Context Projection + Relevance → Notification Intent → Dispatch-time Privacy Revalidation → Notification`
 
-Notification 只負責 delivery，不可自行重新解讀 privacy 或創造新的 social meaning。
+Notification 只負責 delivery，不可自行重新解讀 privacy 或創造新的 social meaning。若 delivery 是延遲的，application orchestration 必須在 dispatch 前重新確認目前的 Privacy & Sharing 決策仍允許該 disclosure；若已被 revocation，pending intent 必須取消或失效。
 
 ---
 
@@ -684,15 +691,14 @@ AI 是 external capability，不是 domain authority。
 
 概念流程：
 
-`Authorized Signals → Application Use Case → ContextGenerator Port → AI Adapter → Normalization / Validation → Context Candidate`
+`Authorized Signals → Application Use Case → ContextGenerator Port → AI Adapter [provider call + normalization + validation + error translation] → Validated Context Draft → Application / Domain → Context Candidate`
 
 核心規則：
 
 - Domain 不知道 OpenAI、Anthropic、Gemini 或 model names。
 - Domain 不知道 prompt template。
-- Raw LLM JSON 不可直接進入 domain object。
-- Provider output 必須先由 adapter 做 normalization / validation。
-- Provider-specific failure 必須在 boundary 被 translate。
+- Raw LLM JSON 不可直接進入 application 或 domain object。
+- AI Adapter 必須在 adapter boundary 內完成 provider output normalization / validation 與 provider-specific failure translation，再透過 `ContextGenerator` port 回傳 inner contract。
 - Port 名稱應描述 business capability，例如 `ContextGenerator`，而不是 vendor API。
 
 Domain truth 最終仍由 Kin 自己的 invariants、policy 與 validated domain objects 決定。
@@ -736,10 +742,11 @@ Product scope 提供 context，不提供自動實作權限。
 3. Social Context 不等於 friend-visible Context Projection。
 4. Privacy decision 必須先於 Relevance ranking。
 5. Relevance 不可繞過 privacy。
-6. AI / provider 永遠是 outer adapter，而不是 domain authority。
-7. 一個 future capability 出現在 product map，不代表已獲得 implementation authorization。
-8. Infrastructure convenience 不得主導 domain boundary。
-9. Kin 最終服務的是 human relationship，不是 engagement metric。
+6. 延遲 delivery 在 dispatch 前必須確認 disclosure 仍有效；revocation 必須能使 pending intent 失效。
+7. AI / provider 永遠是 outer adapter，而不是 domain authority。
+8. 一個 future capability 出現在 product map，不代表已獲得 implementation authorization。
+9. Infrastructure convenience 不得主導 domain boundary。
+10. Kin 最終服務的是 human relationship，不是 engagement metric。
 
 ---
 
