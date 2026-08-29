@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"testing"
 
 	domainfriendship "github.com/kinrelay/kin/apps/api/internal/domain/friendship"
@@ -19,6 +20,7 @@ func (f identityDirectoryFake) Exists(_ context.Context, id domainidentity.ID) (
 }
 
 type friendshipRepositoryFake struct {
+	mu          sync.Mutex
 	friendships map[string]domainfriendship.Friendship
 }
 
@@ -33,11 +35,17 @@ func friendshipKey(first, second domainidentity.ID) string {
 }
 
 func (f *friendshipRepositoryFake) FindBetween(_ context.Context, first, second domainidentity.ID) (domainfriendship.Friendship, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	found, ok := f.friendships[friendshipKey(first, second)]
 	return found, ok, nil
 }
 
 func (f *friendshipRepositoryFake) Save(_ context.Context, friendship domainfriendship.Friendship) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	f.friendships[friendshipKey(friendship.InviterID(), friendship.InviteeID())] = friendship
 	return nil
 }
