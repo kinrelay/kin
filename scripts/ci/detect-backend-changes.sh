@@ -28,8 +28,9 @@ diff_file="$(mktemp)"
 trap 'rm -f "$diff_file"' EXIT
 
 # NUL delimiters preserve every legal Git pathname byte without C-style quoting.
+# Copy detection preserves the source path even when the source itself is unchanged.
 # Writing to a temporary file also lets git diff failures propagate before parsing.
-git diff --name-status -z -M "$diff_base" "$head_sha" > "$diff_file"
+git diff --name-status -z -M -C --find-copies-harder "$diff_base" "$head_sha" > "$diff_file"
 
 while IFS= read -r -d '' status; do
   IFS= read -r -d '' path1
