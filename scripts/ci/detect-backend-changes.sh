@@ -20,6 +20,11 @@ esac
 
 relevant='^(apps/api/|Makefile$|\.github/workflows/ci\.yml$|scripts/ci/)'
 
+# Capture the diff first so an unavailable revision fails the script instead of
+# being mistaken for an empty/non-backend diff. Disable path quoting so UTF-8
+# filenames retain their real prefixes for classification.
+diff_output="$(git -c core.quotePath=false diff --name-status -M "$diff_base" "$head_sha")"
+
 while IFS=$'\t' read -r status path1 path2; do
   [[ -z "${status:-}" ]] && continue
 
@@ -27,6 +32,6 @@ while IFS=$'\t' read -r status path1 path2; do
     echo "true"
     exit 0
   fi
-done < <(git diff --name-status -M "$diff_base" "$head_sha")
+done <<< "$diff_output"
 
 echo "false"
