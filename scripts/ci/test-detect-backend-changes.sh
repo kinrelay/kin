@@ -63,25 +63,39 @@ quoted_head="$(git rev-parse HEAD)"
 result="$(bash "$detector" pr "$base" "$quoted_head")"
 [[ "$result" == "true" ]] || { echo "expected quoted backend path to be relevant" >&2; exit 1; }
 
-# Case 5: copying an unchanged backend file outside apps/api must retain the
-# backend source path and remain relevant.
-git checkout -q -b copy-feature "$base"
+# Case 5: copying an unchanged backend blob only to a non-backend path does not
+# change the backend tree and must stay non-relevant regardless of Git's copy heuristic.
+git checkout -q -b copy-out-feature "$base"
 mkdir -p docs
 cp apps/api/foo.go docs/copied-api.go
 git add docs/copied-api.go
-git commit -qm 'copy backend file to docs'
-copy_head="$(git rev-parse HEAD)"
-result="$(bash "$detector" pr "$base" "$copy_head")"
-[[ "$result" == "true" ]] || { echo "expected backend copy source to be relevant" >&2; exit 1; }
+git commit -qm 'copy backend blob to docs'
+copy_out_head="$(git rev-parse HEAD)"
+result="$(bash "$detector" pr "$base" "$copy_out_head")"
+[[ "$result" == "false" ]] || { echo "expected copy outside backend to stay non-relevant" >&2; exit 1; }
 
-# Case 6: an unavailable revision must fail closed, not report false.
+# Case 6: a copied file whose destination is inside apps/api changes the backend tree.
+git checkout -q -b copy-in-feature "$base"
+mkdir -p docs
+echo 'package copied' > docs/source.go
+git add docs/source.go
+git commit -qm 'add non-backend source'
+copy_source="$(git rev-parse HEAD)"
+cp docs/source.go apps/api/copied.go
+git add apps/api/copied.go
+git commit -qm 'copy file into backend'
+copy_in_head="$(git rev-parse HEAD)"
+result="$(bash "$detector" pr "$copy_source" "$copy_in_head")"
+[[ "$result" == "true" ]] || { echo "expected copy destination inside backend to be relevant" >&2; exit 1; }
+
+# Case 7: an unavailable revision must fail closed, not report false.
 set +e
 bash "$detector" push "$base" deadbeefdeadbeefdeadbeefdeadbeefdeadbeef >/dev/null 2>&1
 status=$?
 set -e
 [[ "$status" -ne 0 ]] || { echo "expected unavailable SHA to fail detection" >&2; exit 1; }
 
-# Case 7: branch-creation pushes use an all-zero before SHA and must compare
+# Case 8: branch-creation pushes use an all-zero before SHA and must compare
 # against the empty tree rather than fail before test selection.
 zero_sha="0000000000000000000000000000000000000000"
 result="$(bash "$detector" push "$zero_sha" "$base")"
