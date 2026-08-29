@@ -20,7 +20,7 @@
 
 不以「建立 database」、「完成 backend」、「完成 frontend」作為 slice。
 
-一個合法 slice 應該能用真實 interaction 描述，例如：
+一個合法 slice 應能用真實 interaction 描述，例如：
 
 - 兩個人可以建立一段 close-friend relationship。
 - 一位使用者可以提供一則有意義的 Activity。
@@ -71,11 +71,13 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ---
 
-## MVP 全貌
+## MVP 全貌與 Active Slice
+
+目前 **Active Slice：MVP 0 — 建立 Identity 與 Close-friend Relationship**。
 
 建議順序：
 
-1. **MVP 0 — 建立 Identity 與 Close-friend Relationship**
+1. **MVP 0 — 建立 Identity 與 Close-friend Relationship** ← Active
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
 3. **MVP 2 — Activity 成為 Derived Social Context**
 4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
@@ -83,7 +85,15 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 6. **MVP 5 — Context 幫助開始真實 Conversation**
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
 
-這個順序代表目前的最小驗證路徑，不是永久 roadmap。只有在前一個 slice 的 learning 顯示下一個 slice 仍值得驗證時，才應繼續向下實作。
+這個順序代表目前的最小驗證路徑，不是永久 roadmap。
+
+### Active Slice 如何前進
+
+- 只有目前 Active Slice 可以直接產生 implementation issues。
+- 一個 slice 可以拆成多張 Issue；完成其中一張不代表 slice 自動完成。
+- 只有當該 slice 的 Acceptance Criteria 與 Slice Completion Signal 都已透過實作與驗證滿足，且沒有仍阻擋核心 hypothesis 的 open issue，才可把下一個 slice 標成 Active。
+- 進入下一個 slice 必須用獨立 docs / roadmap PR 明確更新此標記；不得由 agent 自行推測。
+- 後續 slice 即使已寫在本文件中，在被標成 Active 前仍屬未授權 implementation scope。
 
 ---
 
@@ -91,21 +101,22 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## Goal
 
-讓兩位 Kin 使用者可以形成一段明確、可被後續 privacy 與 context flow 引用的 close-friend relationship。
+讓兩位 Kin 使用者可以形成一段明確、雙方同意、可被後續 privacy 與 context flow 引用的 close-friend relationship。
 
 ## Validation Hypothesis
 
-如果 Kin 的核心價值建立在「特定朋友之間的 context continuity」，那系統首先必須能表達一段真實、雙方明確參與的 relationship，而不是只有 generic follower graph。
+如果 Kin 的核心價值建立在「特定朋友之間的 context continuity」，那系統首先必須能表達一段真實、雙方明確參與的 relationship，而不是 generic follower graph。
 
 ## Primary Actors
 
 - User
-- Friend
+- Friend / Invitee
 
 ## User Stories
 
 - 作為 Kin 使用者，我可以建立基本 identity，讓朋友能辨識我是誰。
-- 作為 Kin 使用者，我可以邀請或接受另一位使用者成為 close friend。
+- 作為 Kin 使用者，我可以邀請另一位使用者成為 close friend。
+- 作為受邀者，我可以明確接受邀請；不是受邀者的人不能替我接受。
 - 作為 relationship participant，我可以知道目前這段 friendship 是否已成立。
 
 ## Use Cases / Interactions
@@ -116,11 +127,11 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 
 ### 發起 Friendship
 
-一位 User 對另一位 User 表達建立 relationship 的 intent。
+一位 User 對另一位 distinct User 表達建立 relationship 的 intent。
 
 ### 接受 Friendship
 
-另一位 User 接受後，relationship 才成為 active。
+只有該 invitation 指定的 invitee 可以接受；inviter 本人或不相關第三人嘗試接受必須失敗。接受後 relationship 才成為 active。
 
 ### 查看 Relationship State
 
@@ -151,6 +162,7 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 
 - relationship participants
 - invitation / acceptance lifecycle
+- invitation target identity
 - active relationship state
 - MVP 所需的 close-friend semantic
 
@@ -159,8 +171,6 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 - `CreateIdentity`
 - `InviteFriend`
 - `AcceptFriendship`
-
-名稱為候選，不代表 API contract。
 
 ## Candidate Queries
 
@@ -174,13 +184,14 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 - `FriendshipInvited`
 - `FriendshipCreated`
 
-只有真正具有 domain significance 時才需要事件，不要求為每個 state change 建 event。
-
 ## Acceptance Criteria
 
 - [ ] 兩位不同使用者可擁有可識別的 Kin identity。
-- [ ] 一位使用者可對另一位使用者發起 friendship intent。
+- [ ] 一位使用者可對另一位 distinct 使用者發起 friendship intent。
 - [ ] 未接受前不可視為 active friendship。
+- [ ] 只有 invitation 指定的 invitee 可以執行 acceptance。
+- [ ] inviter 自行接受自己的邀請必須失敗。
+- [ ] 非 invitation participant 的第三人接受邀請必須失敗。
 - [ ] 接受後雙方都能查詢到一致的 active relationship state。
 - [ ] MVP 不依賴完整 social graph 或公開 follower model。
 
@@ -199,7 +210,7 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 
 ## Slice Completion Signal
 
-當系統可以可靠表達「A 與 B 是一段 active close-friend relationship」時，即可進入 MVP 1。
+當系統可以可靠表達「A 邀請 B，且只有 B 明確接受後，A 與 B 才成為 active close-friend relationship」時，MVP 0 才具備進入下一 slice 的條件。
 
 ---
 
@@ -288,11 +299,11 @@ Actor 建立可參與 Kin relationship 的最小 identity。
 
 - MVP 0 的 Identity。
 
-Friendship 在此 slice 可以存在，但不是 contribution 的必要條件。
+Friendship 可以存在，但不是 contribution 的必要條件。
 
 ## Slice Completion Signal
 
-當使用者可以主動提供一則 private Activity，且系統沒有把 Activity 誤當 social post 時，即可進入 MVP 2。
+當使用者可以主動提供一則 private Activity，且系統沒有把 Activity 誤當 social post 時，即具備進入 MVP 2 的條件。
 
 ---
 
@@ -300,11 +311,11 @@ Friendship 在此 slice 可以存在，但不是 contribution 的必要條件。
 
 ## Goal
 
-把一則或多則 authorized Activity 轉換成較高階、具社交意義的 `Context Candidate` / `Social Context`。
+把一則或多則 authorized Activity 轉換成較高階、具社交意義的 Social Context，而不是一對一改寫成另一種 activity feed。
 
 ## Validation Hypothesis
 
-如果 Kin 只是重新發布 raw Activity，它會退化成 activity feed。真正的差異化應該來自「從 signals 推導 meaning」。
+如果 Kin 只是重新發布或輕量 paraphrase 每一筆 Activity，它仍會退化成 activity feed。差異化必須來自「辨識 significance、抑制低訊號，並從 signals 推導 meaning」。
 
 ## Primary Actors
 
@@ -314,17 +325,34 @@ Friendship 在此 slice 可以存在，但不是 contribution 的必要條件。
 ## User Stories
 
 - 作為使用者，我希望 Kin 理解我最近在意的主題，而不是逐筆重播我的行為。
-- 作為使用者，我希望低訊號或過度細碎的 Activity 不會自動變成 social content。
+- 作為使用者，我希望低訊號、重複或過度細碎的 Activity 不會自動變成 social content。
 
 ## Use Cases / Interactions
 
+### Evaluate Activity Significance
+
+Application / domain 先判斷一則或多則 Activity 是否具有足以形成 social meaning 的 signal。
+
+低訊號、純重複或僅能逐字改寫的輸入應被 suppression / no-op，而不是強制產生 Context Candidate。
+
 ### Derive Context Candidate
 
-Application use case 取得 authorized Activity，透過 domain rules 與必要的 `ContextGenerator` port 建立 validated Context Candidate。
+只有通過最小 significance rule 的 authorized Activity，才可透過 domain rules 與必要的 `ContextGenerator` port 產生 `Context Candidate`。
+
+### Validate / Promote Social Context
+
+`Context Candidate` 必須經 Kin 自己的 validation rules 後，才可 promotion 成 `Social Context`。Validation 至少確認：
+
+- 有可理解且非逐字重播的 social meaning。
+- provenance 仍可追溯到 authorized Activity。
+- 不包含 provider-specific raw payload。
+- 若來自 LLM，已在 adapter boundary 完成 normalization / validation。
+
+無法通過 validation 的 candidate 不得成為 Social Context。
 
 ### Review My Derived Context
 
-MVP 可以讓 owner 查看 derived context，以驗證 wording 與 meaning 是否合理。
+Owner 可以查看 derived Social Context，以驗證 wording 與 meaning 是否合理。
 
 ## Domains Involved
 
@@ -343,37 +371,43 @@ AI 如被使用，只是 outer adapter。
 
 負責：
 
-- Context Candidate
-- semantic meaning
 - significance interpretation
-- context lifecycle
+- Context Candidate
+- candidate validation / promotion
+- Social Context lifecycle
+- semantic meaning
+- suppression
 - abstract provenance
 
 ## Candidate Commands
 
 - `GenerateContextFromActivity`
+- `ValidateContextCandidate`
 - `SuppressContext`
-
-是否需要 owner approval 應由實際 UX validation 決定，不在此先假設完整 moderation workflow。
 
 ## Candidate Queries
 
 - `ListMyContextCandidates`
-- `GetContextCandidate`
+- `ListMySocialContexts`
+- `GetSocialContext`
 
 ## Candidate Domain Events
 
 - `ContextCandidateGenerated`
+- `SocialContextValidated`
 - `ContextSuppressed`
 
 ## Acceptance Criteria
 
-- [ ] 一則或多則 authorized Activity 可以產生 derived Context Candidate。
+- [ ] 一則或多則 authorized Activity 可以在具有足夠 significance 時產生 derived Context Candidate。
+- [ ] 低訊號、重複、純逐筆 paraphrase 或過度細碎的 Activity 不會被強制轉成 Context Candidate。
 - [ ] Raw Activity 不會被直接當成 friend-visible context。
+- [ ] Context Candidate 必須經 validation 才能成為 Social Context。
+- [ ] 無法通過 validation 的 candidate 不得進入 Social Context state。
 - [ ] Context wording 不包含 provider-specific payload shape。
 - [ ] 若使用 LLM，provider output 必須在 adapter boundary 完成 normalization / validation。
-- [ ] 無法通過 validation 的 AI/provider output 不得進入 domain state。
-- [ ] 使用者可以看到目前為自己產生的 derived context，以進行產品驗證。
+- [ ] 無法通過 adapter validation 的 AI/provider output 不得進入 application/domain flow。
+- [ ] 使用者可以看到目前為自己產生的 Social Context，以進行產品驗證。
 
 ## Non-goals
 
@@ -391,7 +425,7 @@ AI 如被使用，只是 outer adapter。
 
 ## Slice Completion Signal
 
-當 Kin 能把 private Activity 轉成較高階、可理解、但尚未對朋友揭露的 Social Context 時，即可進入 MVP 3。
+當 Kin 能把 private Activity 經 significance 判斷與 candidate validation，轉成較高階、可理解、但尚未對朋友揭露的 `Social Context` 時，MVP 2 才具備進入下一 slice 的條件。
 
 ---
 
@@ -408,11 +442,12 @@ AI 如被使用，只是 outer adapter。
 ## Primary Actors
 
 - Context Owner
-- Friend
+- Friend Viewer
 
 ## User Stories
 
 - 作為 Context Owner，我可以決定某個 context 是否允許朋友知道。
+- 作為 Context Owner，只有我可以建立、修改或撤銷我的 disclosure decision。
 - 作為 Friend，我只能看到這段 relationship 被允許看到的 detail level。
 - 作為 Context Owner，我撤銷分享後，未來 surface / notification 不應繼續洩漏舊資料。
 
@@ -420,7 +455,7 @@ AI 如被使用，只是 outer adapter。
 
 ### Define Sharing Decision
 
-Owner 對 context / category / relationship 提供 MVP 所需的最小 disclosure decision。
+只有 authenticated Context Owner 可以對自己的 context / category / relationship 建立或修改 disclosure decision。
 
 ### Project Context For Friend
 
@@ -428,7 +463,7 @@ Privacy & Sharing 根據 Social Context、Friendship 與 policy 產生 relations
 
 ### Revoke Disclosure
 
-Owner 可撤銷既有 disclosure，後續 read / surface 必須反映最新 policy。
+只有 authenticated Context Owner 可以撤銷既有 disclosure。撤銷後，後續 read / surface 必須反映最新 policy。
 
 ## Domains Involved
 
@@ -443,6 +478,7 @@ Owner 可撤銷既有 disclosure，後續 read / surface 必須反映最新 poli
 負責：
 
 - disclosure decision
+- ownership authorization for policy mutation
 - least-revealing valid projection
 - relationship-specific visibility
 - revocation
@@ -475,6 +511,9 @@ Owner 可撤銷既有 disclosure，後續 read / surface 必須反映最新 poli
 - [ ] Friend 無法看到沒有明確 disclosure permission 的 Social Context。
 - [ ] Friend-facing read side 使用 `Context Projection`，不是 raw Social Context。
 - [ ] 同一份 Social Context 可以對不同 relationship 產生不同結果，至少支援「可見 / 不可見」或一個最小 detail-level variation。
+- [ ] 只有 authenticated Context Owner 可以建立、修改或撤銷該 context 的 sharing decision。
+- [ ] Friend Viewer 嘗試替自己增加 visibility 必須失敗。
+- [ ] 非 owner 的第三人修改 disclosure policy 必須失敗。
 - [ ] Revocation 會影響後續 query / surface。
 - [ ] 沒有 permission 必須解讀為不可揭露。
 - [ ] Privacy evaluation 必須發生在 Relevance / Friend Pulse 之前。
@@ -494,7 +533,7 @@ Owner 可撤銷既有 disclosure，後續 read / surface 必須反映最新 poli
 
 ## Slice Completion Signal
 
-當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」時，即可進入 MVP 4。
+當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」，且只有 Context Owner 能控制此 decision 時，MVP 3 才具備進入下一 slice 的條件。
 
 ---
 
@@ -506,7 +545,7 @@ Owner 可撤銷既有 disclosure，後續 read / surface 必須反映最新 poli
 
 ## Validation Hypothesis
 
-Kin 的核心使用體驗應該降低「我不知道朋友最近在幹嘛」的成本。若只提供大量 context list，產品仍可能製造另一個需要刷的 feed。
+Kin 的核心使用體驗應降低「我不知道朋友最近在幹嘛」的成本。若只提供大量 context list，產品仍可能製造另一個需要刷的 feed。
 
 ## Primary Actors
 
@@ -564,8 +603,6 @@ Read-side 先取得 viewer 有權看到的 Context Projections，再由 Relevanc
 
 通常不需要因為單純 query 產生 domain event。
 
-若未來明確追蹤「Pulse generated」有 domain significance，再重新評估。
-
 ## Acceptance Criteria
 
 - [ ] 使用者可以取得某位 active friend 的 Friend Pulse。
@@ -591,7 +628,7 @@ Read-side 先取得 viewer 有權看到的 Context Projections，再由 Relevanc
 
 ## Slice Completion Signal
 
-當使用者可以在極短時間內理解「朋友最近最值得知道什麼」，即可進入 MVP 5。
+當使用者可以在極短時間內理解「朋友最近最值得知道什麼」時，MVP 4 才具備進入下一 slice 的條件。
 
 ---
 
@@ -603,7 +640,7 @@ Read-side 先取得 viewer 有權看到的 Context Projections，再由 Relevanc
 
 ## Validation Hypothesis
 
-Kin 真正的 outcome 不是「看過 context」，而是讓真實 relationship 更容易產生 conversation。
+Kin 真正的 outcome 不是「看過 context」，而是讓真實 relationship 更容易產生 conversation intent，並最終促成真實對話。
 
 ## Primary Actors
 
@@ -611,14 +648,14 @@ Kin 真正的 outcome 不是「看過 context」，而是讓真實 relationship 
 
 ## User Stories
 
-- 作為使用者，看到朋友的一則 context 後，我可以快速得到一個自然、不尷尬的 conversation starter。
+- 作為使用者，看到朋友的一則 context 後，我可以快速得到一個自然、不尷尬、與該 context 有關的 conversation starter。
 - 作為使用者，我可以用「聊聊這個」之類的 CTA 把 context 轉成真實互動意圖。
 
 ## Use Cases / Interactions
 
 ### Generate Conversation Starter
 
-針對 viewer 已有權看到的 Context Projection 產生自然的 starter。
+針對 viewer 已有權看到的 Context Projection 產生自然且相關的 starter。若無法產生具體、可使用的 starter，不能只回傳空字串或 generic placeholder 來視為成功。
 
 ### Start Conversation Intent
 
@@ -627,6 +664,8 @@ Kin 真正的 outcome 不是「看過 context」，而是讓真實 relationship 
 ### Record Lightweight Outcome
 
 若不增加過多摩擦，可以記錄使用者是否點擊 / 採用 conversation CTA，作為產品驗證訊號。
+
+Kin 若無法觀測外部聊天是否真的開始，不得把 intent 記錄成 confirmed conversation。
 
 ## Domains Involved
 
@@ -654,7 +693,7 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 ## Candidate Commands
 
-- `StartConversationFromContext`
+- `ExpressConversationIntentFromContext`
 - `RecordConversationIntentOutcome`
 
 ## Candidate Queries
@@ -663,16 +702,19 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 ## Candidate Domain Events
 
-- `ConversationStartedFromContext`
+- `ConversationIntentExpressedFromContext`
 
-只有在產品能可靠知道此 intent 發生時才使用，不假裝 Kin 知道外部聊天真的發生。
+若未來真的能確認外部 conversation 已開始，再另外定義 confirmed outcome event；本 MVP 不過度宣稱。
 
 ## Acceptance Criteria
 
 - [ ] Starter 只能使用 viewer 已授權可見的 Context Projection。
 - [ ] Starter 不可藉由 prompt 還原更敏感的 raw Social Context / Activity。
+- [ ] 對可用的 Context Projection，系統能回傳一個非空白、非 generic placeholder、且與該 projection 明確相關的 conversation starter。
 - [ ] 使用者可以從 Pulse/context 明確進入 conversation CTA。
 - [ ] 至少能收集一個 lightweight signal 判斷 context 是否促成 interaction intent。
+- [ ] Product validation 必須能區分「starter 有生成」與「starter 對使用者真的有幫助 / 被採用」。
+- [ ] 未能觀測外部聊天開始時，不得將 CTA click / intent 計為 confirmed conversation started。
 - [ ] 不要求 Kin 自己成為 messaging app。
 
 ## Non-goals
@@ -690,7 +732,7 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 ## Slice Completion Signal
 
-當團隊可以開始衡量「context 是否真的讓朋友更容易開口」時，核心產品 loop 已具備最小驗證能力。
+當團隊可以驗證「projection-based starter 是否真的降低開口摩擦」，並能量測 conversation intent，而不把 intent 誤當 confirmed conversation 時，核心產品 loop 才具備最小驗證能力。
 
 ---
 
@@ -725,6 +767,8 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 Integration adapter 取得 provider payload，在 boundary normalization / validation 後，呼叫既有 Activity contribution application flow。
 
+同一 external item 必須具有可穩定識別的 provenance / provider item identity，使 overlapping pages、retry 或 timeout recovery 不會重複產生相同 Kin Activity。
+
 ### Disconnect Provider
 
 停止後續 sync；是否刪除既有 derived data 應依獨立 privacy / retention policy 決定，不在此 slice 偷渡假設。
@@ -746,6 +790,8 @@ Integration adapter 取得 provider payload，在 boundary normalization / valid
 - provider connection state
 - external authorization lifecycle
 - checkpoint / sync concerns
+- stable external provenance identity
+- repeated-sync idempotency / deduplication
 - provider error translation
 - provider-specific payload normalization boundary
 
@@ -777,6 +823,8 @@ Integration adapter 取得 provider payload，在 boundary normalization / valid
 - [ ] 系統只取得使用者授權範圍內的 signal。
 - [ ] Provider-specific DTO 不會穿透進 Activity / Social Context domain model。
 - [ ] Provider error 會在 Integration boundary 被 translate。
+- [ ] 相同 provider item 在 overlapping page、重試或 timeout recovery 後不會重複建立 Kin Activity。
+- [ ] Dedup / idempotency 依 stable provenance / provider item identity 判斷，而不是依脆弱的顯示文字比較。
 - [ ] 自動 ingestion 會重用既有 Activity → Social Context → Privacy → Pulse flow。
 - [ ] Disconnect 後不再取得新的 provider Activity。
 - [ ] Integration 不會改變既有 Privacy rules。
@@ -796,7 +844,7 @@ Integration adapter 取得 provider payload，在 boundary normalization / valid
 
 ## Slice Completion Signal
 
-當 automatic activity ingestion 能降低 contribution friction，同時不破壞 privacy / domain boundaries，MVP 才算完成第一輪 ambient-loop 驗證。
+當 automatic activity ingestion 能降低 contribution friction、重試不產生重複 Activity，同時不破壞 privacy / domain boundaries，MVP 才算完成第一輪 ambient-loop 驗證。
 
 ---
 
@@ -806,13 +854,13 @@ Integration adapter 取得 provider payload，在 boundary normalization / valid
 
 AI coding agent 不應直接把整份 roadmap 當成一張 implementation task。
 
-每次只能從目前 active slice 中挑一個最小 coherent vertical change，建立獨立 GitHub Issue。
+每次只能從 **目前 Active Slice** 中挑一個最小 coherent vertical change，建立獨立 GitHub Issue。
 
 合法順序：
 
-`Product Scope → Current MVP Slice → User Story → Use Case → GitHub Issue → Implementation`
+`Root AGENTS.md → Active GitHub Issue → applicable local AGENTS.md → Current MVP Slice → Product Scope → relevant Skills → Implementation`
 
-如果一個 proposed Issue 需要尚未完成 slice 才存在的 domain capability，該 Issue 應被視為 premature。
+如果一個 proposed Issue 需要尚未 Active 或尚未完成 slice 才存在的 domain capability，該 Issue 應被視為 premature。
 
 ## Slice 可以被拆成多張 Issue
 
@@ -826,6 +874,14 @@ AI coding agent 不應直接把整份 roadmap 當成一張 implementation task�
 4. 補 revocation flow。
 
 但每張 Issue 都必須留下可驗證的 vertical progress，而不是只建立未被 use case 使用的 infrastructure。
+
+## Active Slice 的變更規則
+
+- 初始 Active Slice 是 MVP 0。
+- 完成某張 Issue 不會自動切換 Active Slice。
+- 當前 slice 全部 Acceptance Criteria 與 Slice Completion Signal 被驗證後，建立 roadmap PR 把 Active 標記移到下一 slice。
+- 該 roadmap PR 本身也必須通過 repository review / merge gate。
+- Agent 不得僅依 Issue 編號、unchecked checklist 或 dependency prose 自行推斷 Active Slice 已前進。
 
 ## 不應建立的 Issue 類型
 
@@ -857,7 +913,8 @@ MVP 最終不是以 feature count 驗收，而是要開始能回答：
 
 長期優先 metrics 仍應偏向：
 
-- Conversations Started
+- Conversations Started（只在真的能確認時使用）
+- Conversation Intents Expressed
 - Friendships Maintained
 - Dormant Friendships Reactivated
 - 使用者是否覺得更了解 close friends 最近在意什麼
@@ -888,6 +945,16 @@ DAU、session time、feed impression 不應成為 Kin MVP 的主要成功定義�
 
 ## 文件閱讀順序
 
-`Product Scope → MVP Roadmap → Current Slice → GitHub Issue → AGENTS.md / Skills → Implementation`
+任何 coding agent 在開始工作前，必須先遵守 root agent contract，而不是先由本文件決定 scope。
 
-當內容衝突時，以目前 active GitHub Issue 的 Acceptance Criteria / Non-goals 與 repository agent contract 的 precedence 規則為準。
+閱讀與決策順序：
+
+1. Root `AGENTS.md`
+2. Current active GitHub Issue（含 Acceptance Criteria / Non-goals）
+3. Nearest applicable local `AGENTS.md`（若存在）
+4. 本文件中的 Current Active Slice
+5. `docs/product/product-scope.md`
+6. Relevant repo-local skills
+7. Implementation
+
+若內容衝突，以 root `AGENTS.md` 定義的 source-of-truth precedence 為準；本 roadmap 不可自行覆蓋 repository agent contract。
