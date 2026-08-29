@@ -13,7 +13,7 @@ git config user.email ci-test@example.com
 git config user.name ci-test
 git config commit.gpgsign false
 git config core.hooksPath "$tmp/.empty-hooks"
-mkdir -p "$tmp/.empty-hooks" apps/api docs
+mkdir -p "$tmp/.empty-hooks" apps/api
 echo 'package api' > apps/api/foo.go
 git add .
 git commit -qm 'base'
@@ -21,6 +21,7 @@ base="$(git rev-parse HEAD)"
 
 # Case 1: moving a backend file outside apps/api must still be relevant.
 git checkout -qb rename-feature "$base"
+mkdir -p docs
 git mv apps/api/foo.go docs/foo.go
 git commit -qm 'move backend file out'
 rename_head="$(git rev-parse HEAD)"
@@ -30,6 +31,7 @@ result="$(bash "$detector" pr "$base" "$rename_head")"
 # Case 2: backend-only changes on the base branch after the split must not make
 # a docs-only PR backend-relevant.
 git checkout -q -b docs-feature "$base"
+mkdir -p docs
 echo 'docs only' > docs/readme.md
 git add docs/readme.md
 git commit -qm 'feature docs change'
