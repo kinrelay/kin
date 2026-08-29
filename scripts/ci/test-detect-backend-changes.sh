@@ -19,6 +19,7 @@ base="$(git rev-parse HEAD)"
 
 # Case 1: moving a backend file outside apps/api must still be relevant.
 git checkout -qb rename-feature "$base"
+mkdir -p docs
 git mv apps/api/foo.go docs/foo.go
 git commit -qm 'move backend file out'
 rename_head="$(git rev-parse HEAD)"
@@ -29,6 +30,7 @@ result="$(bash "$detector" pr "$base" "$rename_head")"
 # Case 2: backend-only changes that happened on the base branch after the
 # feature branch split must not make a docs-only PR backend-relevant.
 git checkout -q -b docs-feature "$base"
+mkdir -p docs
 echo 'docs only' > docs/readme.md
 git add docs/readme.md
 git commit -qm 'feature docs change'
