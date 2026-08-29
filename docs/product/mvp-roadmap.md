@@ -449,7 +449,7 @@ AI 如被使用，只是 outer adapter。
 - 作為 Context Owner，我可以決定某個 context 是否允許朋友知道。
 - 作為 Context Owner，只有我可以建立、修改或撤銷我的 disclosure decision。
 - 作為 Friend，我只能看到這段 relationship 被允許看到的 detail level。
-- 作為 Context Owner，我撤銷分享後，未來 surface / notification 不應繼續洩漏舊資料。
+- 作為 Context Owner，我降低或撤銷分享後，未來 surface / notification 不應繼續洩漏舊的或過度詳細的資料。
 
 ## Use Cases / Interactions
 
@@ -463,11 +463,15 @@ Privacy & Sharing 根據 Social Context、Friendship 與 policy 產生 relations
 
 Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，並確認 caller 是該 **active relationship** 的 participant；不得只信任 request 傳入的 viewer identity 或 relationship identifier。
 
-### Revoke Disclosure
+### Revoke / Downgrade Disclosure
 
-只有 authenticated Context Owner 可以撤銷既有 disclosure。撤銷後，後續 read / surface 必須反映最新 policy。
+只有 authenticated Context Owner 可以撤銷既有 disclosure 或降低 sharing detail。撤銷或降級後，後續 read / surface 必須反映最新 policy。
 
-若已有 pending notification intent，application orchestration 必須在實際 dispatch 前重新驗證最新 Privacy & Sharing authorization。若 disclosure 在排程後、dispatch 前被撤銷或失效，pending intent 必須取消或標記 invalid，不得送出已撤銷的 context。Notification 本身不解讀 privacy policy，而是只接受 dispatch-time 已重新授權的 delivery intent。
+若已有 pending notification intent，application orchestration 必須在實際 dispatch 前重新取得最新 Privacy & Sharing decision，並**重新計算當下 relationship-specific `Context Projection` / detail level**，不能只檢查 disclosure 是否仍為 valid。
+
+- 若 disclosure 在排程後、dispatch 前已 revoked / invalid，pending intent 必須取消或標記 invalid，不得送出。
+- 若 disclosure 仍有效但 detail level 已降低，舊 intent 若包含超出最新 policy 的 projection，必須以最新較低 detail 的 projection 更新 delivery intent，或在無法安全更新時取消。
+- Notification 本身不解讀 privacy policy，也不得沿用舊的 friend-visible payload；它只接受 dispatch-time 重新授權且重新投影後的 delivery intent。
 
 ## Domains Involved
 
@@ -485,7 +489,8 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 - ownership authorization for policy mutation
 - least-revealing valid projection
 - relationship-specific visibility
-- revocation
+- revocation / detail downgrade
+- dispatch-time projection re-evaluation contract
 
 ### Friendship
 
@@ -516,11 +521,13 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 - [ ] Friend-facing read side 使用 `Context Projection`，不是 raw Social Context。
 - [ ] Friend-facing read side 必須驗證 authenticated caller identity，且 caller 必須是目標 active relationship 的 participant；不得信任 caller 可自行指定的 viewer / relationship id 來授權讀取。
 - [ ] 同一份 Social Context 可以對不同 relationship 產生不同結果，至少支援「可見 / 不可見」或一個最小 detail-level variation。
-- [ ] 只有 authenticated Context Owner 可以建立、修改或撤銷該 context 的 sharing decision。
+- [ ] 只有 authenticated Context Owner 可以建立、修改、降低或撤銷該 context 的 sharing decision。
 - [ ] Friend Viewer 嘗試替自己增加 visibility 必須失敗。
 - [ ] 非 owner 的第三人修改 disclosure policy 必須失敗。
-- [ ] Revocation 會影響後續 query / surface。
-- [ ] Pending notification intent 在 dispatch 前必須重新驗證最新 privacy authorization；若 disclosure 已 revoked / invalid，該 intent 必須取消或失效且不可送出。
+- [ ] Revocation 或 detail downgrade 會影響後續 query / surface。
+- [ ] Pending notification intent 在 dispatch 前必須重新取得最新 privacy decision，並重新計算 relationship-specific `Context Projection` / detail level；不得直接沿用排程時保存的舊 projection。
+- [ ] 若 disclosure 已 revoked / invalid，pending intent 必須取消或失效且不可送出。
+- [ ] 若 disclosure 仍有效但 detail level 已降低，pending intent 必須更新成最新較低 detail 的 projection，或在無法安全更新時取消；不得送出舊的較詳細 context。
 - [ ] 沒有 permission 必須解讀為不可揭露。
 - [ ] Privacy evaluation 必須發生在 Relevance / Friend Pulse 之前。
 
@@ -539,7 +546,7 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 
 ## Slice Completion Signal
 
-當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」，只有 active relationship participant 能取得 projection、只有 Context Owner 能控制 disclosure，且 revocation 能阻止尚未 dispatch 的 disclosure 時，MVP 3 才具備進入下一 slice 的條件。
+當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」，只有 active relationship participant 能取得 projection、只有 Context Owner 能控制 disclosure，且任何尚未 dispatch 的 disclosure 都會在送出前依最新 policy 重新授權與重新投影，使 revocation 或 detail downgrade 都不會送出過期或過度詳細的 context 時，MVP 3 才具備進入下一 slice 的條件。
 
 ---
 
