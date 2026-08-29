@@ -1,6 +1,6 @@
 # CI Foundation
 
-Kin 目前以 GitHub Actions 作為 primary CI execution layer，但 testing semantics 必須保持 provider-neutral。
+目前以 GitHub Actions 作為 primary CI execution layer，但 testing semantics 必須保持 provider-neutral。
 
 ## Canonical test command
 
@@ -19,21 +19,33 @@ make test
 - Pull Request
 - push 到 `main`
 
-同一 PR / branch 的舊 workflow 會透過 GitHub Actions concurrency 自動取消，降低頻繁 push / AI review loop 的 runner 消耗。
+為避免同一 PR branch 同時跑 push CI 與 PR CI，目前 feature branch push 不另外觸發 workflow。
 
-CI workflow 本身維持一個穩定的 `test` check。它會先檢查此次 event 的實際 diff：
+同一 PR / branch 有新 commit 時，舊的 in-progress workflow 會由 GitHub Actions concurrency 自動取消。
 
-- 若變更包含 `apps/api/**`、root `Makefile` 或 CI workflow 本身，執行 `make test`。
-- 若 diff 沒有 backend executable/config change，例如純 docs change，保留成功的 CI check，但不執行 Go setup / Go tests。
+## Diff-based optimization
 
-Pull Request 使用 PR base SHA 到目前 head SHA 的完整 diff；push 到 `main` 使用 event 的 before SHA 到目前 SHA。這避免只看最後一個 commit 而漏掉同一 PR / push 中較早的 executable change。
+workflow 會先判斷此次 event 的完整 diff：
+
+- Pull Request：PR base SHA → current head SHA
+- push `main`：event before SHA → current SHA
+
+只有 diff 包含 backend executable/config concern 時才 setup Go 並執行 `make test`。目前包括：
+
+- `apps/api/**`
+- `Makefile`
+- `.github/workflows/ci.yml`
+
+純文件或與 backend 無關的變更仍會留下穩定的 `test` job/check，但不消耗 Go setup / test workload。
+
+這個判斷以 event 的完整 diff 為準，不以 branch 歷史或單一最後 commit 判斷。
 
 ## TDD relationship
 
-CI 驗證的是 committed state 是否為 Green。Feature development 的 Red → Green → Refactor 過程仍由 TDD / workflow contract 負責，並應在 PR evidence 中誠實記錄。
+CI 驗證的是 committed state 是否為 Green。Feature-level Red → Green → Refactor evidence 由 development workflow / TDD contract 負責，不應把 intentionally failing Red commit 當成可合併狀態。
 
-## Future CircleCI portability
+## Future provider portability
 
-如果未來因 GitHub Actions quota / cost 需要導入 CircleCI overflow，CircleCI 應直接重用 `make test`。不要把 business/test semantics 複製進 CircleCI config。
+未來若加入 CircleCI，它應重用相同 repository-level commands（目前是 `make test`），而不是在 CircleCI config 裡重新定義另一套 testing semantics。
 
-Quota threshold、`CI_PROVIDER` switching、billing automation 或獨立 CI Router 不屬於目前 Phase 1 foundation。
+完整 quota router、billing polling、`CI_PROVIDER` 自動切換與 expensive-job routing 不屬於目前 foundation scope。
