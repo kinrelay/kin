@@ -1,0 +1,102 @@
+# Workflow Skill
+
+Use this skill for issue-to-PR execution.
+
+## Objective
+
+Keep agent work scoped, architecture-aligned, reviewable, and evidence-based.
+
+## Before implementation
+
+1. Read root `AGENTS.md`.
+2. Read the current issue completely.
+3. Identify acceptance criteria and explicit non-goals.
+4. Read the minimum relevant product/MVP/architecture documents.
+5. Identify affected domain(s), actor(s), interaction(s), command(s), query(s), events, and external boundaries.
+6. Confirm whether the requested change is domain behavior, application orchestration, read-model work, adapter work, delivery work, or documentation.
+7. Do not create infrastructure or abstractions for hypothetical future work.
+
+If product or domain terminology is unclear, prefer updating/discussing the language before encoding ambiguous concepts into persistence or APIs.
+
+## Implementation order
+
+For feature changes, work inside-out:
+
+1. Domain concepts and invariants.
+2. Domain tests.
+3. Application command/query/use-case contract.
+4. Application tests with fakes/in-memory ports.
+5. Ports required by the use case.
+6. Concrete adapters/infrastructure.
+7. Adapter/integration tests.
+8. Delivery layer.
+9. Critical vertical/E2E validation when needed.
+
+A change may skip irrelevant layers, but must not invert the dependency direction.
+
+## Scope discipline
+
+- The GitHub issue defines the authorized unit of work.
+- Product scope provides context, not permission to implement all future capabilities.
+- MVP roadmap determines sequencing when available.
+- Avoid opportunistic refactors unrelated to the issue.
+- If an adjacent problem materially blocks the issue, document it and prefer a follow-up issue rather than silently expanding scope.
+
+## Branch and commit expectations
+
+After the repository has an initial commit:
+
+- Work on a dedicated branch.
+- Keep commits coherent and reviewable.
+- Prefer conventional-style messages where practical.
+- Do not mix unrelated feature work into the same branch.
+
+## Validation
+
+Run the smallest relevant checks first, then broader required checks.
+
+For code changes, record exact commands and outcomes.
+For documentation-only changes, inspect links, paths, terminology, and consistency; runtime tests are not required unless executable/configuration behavior changed.
+
+Never state that a test or check passed unless it was actually executed.
+
+## Self-review before PR
+
+Review the final diff and answer:
+
+- Does every changed file belong to the issue?
+- Did any infrastructure detail leak into domain/application contracts?
+- Did a query mutate state?
+- Did read-side needs distort the write model?
+- Are provider-specific DTOs/types isolated in adapters?
+- Are new abstractions justified by an active use case?
+- Are tests placed at the lowest useful architecture layer?
+- Are all acceptance criteria satisfied?
+- Are non-goals still respected?
+
+## Pull request contract
+
+PR descriptions should include:
+
+- Summary
+- Why this change exists
+- Architecture/domain impact
+- Scope / non-goals when useful
+- Validation evidence with exact commands
+- Known follow-ups or intentionally deferred work
+- Issue linkage (`Closes #...` when completion is intended)
+
+Do not mark work complete merely because code compiles or an agent reports “done”. Completion means acceptance criteria are demonstrably satisfied.
+
+## Review handling
+
+For every substantive review comment:
+
+- respond with the fix, or
+- explain why the suggestion is declined/not applicable.
+
+Do not silently ignore review feedback.
+
+If a review has been read and work is still in progress, use an acknowledgment such as an eyes reaction where the platform/workflow supports it.
+
+After changes from review, rerun checks affected by the new diff before merge.
