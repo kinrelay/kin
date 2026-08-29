@@ -126,9 +126,10 @@ Before completion:
 - Verify every acceptance criterion explicitly.
 - Record test/validation evidence in the PR.
 - Process external PR review feedback, including CodeRabbit when enabled for the repository.
+- When CodeRabbit is enabled, its review for the current non-draft PR and current diff must complete before merge.
 - Every actionable review comment must be fixed or explicitly declined with a technical reason before merge.
 - If a review comment has been read but is still being worked on, acknowledge it with an 👀 reaction where supported.
-- CI passing alone is not sufficient for merge readiness when actionable review feedback remains unresolved.
+- CI passing alone is not sufficient for merge readiness when the required external review has not completed or actionable review feedback remains unresolved.
 
 See `.agents/skills/workflow/SKILL.md` for the detailed issue-to-PR workflow.
 
