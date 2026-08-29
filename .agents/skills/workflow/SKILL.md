@@ -110,10 +110,11 @@ When CodeRabbit is enabled for the repository:
 
 - Treat its actionable findings as external review input, not as architectural authority.
 - Repository contracts (`AGENTS.md`, local contracts, issue acceptance criteria, and relevant skills) remain the source of truth.
-- Automatic review is expected on non-draft PRs.
+- Automatic review is required on non-draft PRs.
 - Do not request automatic review for draft PRs unless a task explicitly requires it.
+- The CodeRabbit review for the current non-draft PR and current diff must complete before merge.
 - Review feedback must be handled with the same fix-or-explicit-decline policy as human feedback.
-- A green CI result does not make the PR merge-ready while actionable CodeRabbit feedback remains unresolved.
+- A green CI result does not make the PR merge-ready while the required CodeRabbit review is incomplete or actionable CodeRabbit feedback remains unresolved.
 
 ## Merge readiness
 
@@ -122,6 +123,7 @@ Before merge, verify all of the following:
 - Acceptance criteria are satisfied.
 - Required CI/checks have passed for the current diff.
 - The final diff has been self-reviewed for scope and architecture leakage.
+- When CodeRabbit is enabled, its review has completed for the current non-draft PR and current diff.
 - All actionable human and automated review feedback is fixed or explicitly declined.
 - Review-driven changes have been revalidated where relevant.
 - No known unresolved blocker remains hidden in a review thread or PR conversation.
