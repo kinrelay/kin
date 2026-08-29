@@ -31,7 +31,10 @@ func (uc CreateIdentity) Execute(ctx context.Context, command CreateIdentityComm
 		return domainidentity.Identity{}, err
 	}
 
-	created := domainidentity.New(id)
+	created, err := domainidentity.New(id)
+	if err != nil {
+		return domainidentity.Identity{}, err
+	}
 	if err := uc.repository.Create(ctx, created); err != nil {
 		return domainidentity.Identity{}, err
 	}
