@@ -31,11 +31,13 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             base_sha="${{ github.event.pull_request.base.sha }}"
+            head_sha="${{ github.event.pull_request.head.sha }}"
           else
             base_sha="${{ github.event.before }}"
+            head_sha="$GITHUB_SHA"
           fi
 
-          git diff --name-only "$base_sha" "$GITHUB_SHA" | tee /tmp/changed-files.txt
+          git diff --name-only "$base_sha" "$head_sha" | tee /tmp/changed-files.txt
 
           if grep -Eq '^(apps/api/|Makefile$|\.github/workflows/ci\.yml$)' /tmp/changed-files.txt; then
             echo "api=true" >> "$GITHUB_OUTPUT"
