@@ -63,14 +63,25 @@ quoted_head="$(git rev-parse HEAD)"
 result="$(bash "$detector" pr "$base" "$quoted_head")"
 [[ "$result" == "true" ]] || { echo "expected quoted backend path to be relevant" >&2; exit 1; }
 
-# Case 5: an unavailable revision must fail closed, not report false.
+# Case 5: copying an unchanged backend file outside apps/api must retain the
+# backend source path and remain relevant.
+git checkout -q -b copy-feature "$base"
+mkdir -p docs
+cp apps/api/foo.go docs/copied-api.go
+git add docs/copied-api.go
+git commit -qm 'copy backend file to docs'
+copy_head="$(git rev-parse HEAD)"
+result="$(bash "$detector" pr "$base" "$copy_head")"
+[[ "$result" == "true" ]] || { echo "expected backend copy source to be relevant" >&2; exit 1; }
+
+# Case 6: an unavailable revision must fail closed, not report false.
 set +e
 bash "$detector" push "$base" deadbeefdeadbeefdeadbeefdeadbeefdeadbeef >/dev/null 2>&1
 status=$?
 set -e
 [[ "$status" -ne 0 ]] || { echo "expected unavailable SHA to fail detection" >&2; exit 1; }
 
-# Case 6: branch-creation pushes use an all-zero before SHA and must compare
+# Case 7: branch-creation pushes use an all-zero before SHA and must compare
 # against the empty tree rather than fail before test selection.
 zero_sha="0000000000000000000000000000000000000000"
 result="$(bash "$detector" push "$zero_sha" "$base")"
