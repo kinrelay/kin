@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 
+	applicationfriendship "github.com/kinrelay/kin/apps/api/internal/application/friendship"
 	domainfriendship "github.com/kinrelay/kin/apps/api/internal/domain/friendship"
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 )
@@ -27,6 +28,23 @@ func (r *MemoryRepository) FindBetween(_ context.Context, first, second domainid
 
 	found, ok := r.friendships[memoryKey(first, second)]
 	return found, ok, nil
+}
+
+// FindActiveBetween returns a purpose-built read projection only when the friendship is active.
+func (r *MemoryRepository) FindActiveBetween(_ context.Context, first, second domainidentity.ID) (applicationfriendship.FriendshipReadModel, bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	found, ok := r.friendships[memoryKey(first, second)]
+	if !ok || !found.IsActive() {
+		return applicationfriendship.FriendshipReadModel{}, false, nil
+	}
+
+	return applicationfriendship.FriendshipReadModel{
+		FirstParticipantID:  string(found.InviterID()),
+		SecondParticipantID: string(found.InviteeID()),
+		Active:              true,
+	}, true, nil
 }
 
 // CreateIfAbsent atomically creates the participant-pair aggregate when none exists.
