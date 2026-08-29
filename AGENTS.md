@@ -1,0 +1,118 @@
+# Kin Coding Agent Contract
+
+This file is the canonical contract for coding agents working in this repository.
+
+## Source-of-truth precedence
+
+When instructions conflict, follow this order:
+
+1. The current GitHub issue and its explicit acceptance criteria / non-goals.
+2. `docs/product/mvp-roadmap.md` for the currently authorized product slice.
+3. `docs/product/product-scope.md` for long-term product/domain context.
+4. Architecture contracts and repo-local skills under `.agents/skills/`.
+5. Existing implementation conventions.
+
+Do not implement future scope merely because it appears in product documentation.
+
+## Required implementation order
+
+Feature work must proceed from the inside out:
+
+1. Discover or confirm ubiquitous language and domain responsibility.
+2. Define the user interaction / use case, including success and failure paths.
+3. Define or refine domain entities, value objects, aggregates, invariants, and domain events.
+4. Write or update domain tests.
+5. Define application commands / queries and required ports.
+6. Write application tests using fakes or in-memory ports.
+7. Implement adapters and infrastructure only after the inner contracts are clear.
+8. Add adapter / integration tests.
+9. Add delivery-layer code such as HTTP handlers, workers, or mobile integration last.
+
+Do not start a feature by designing database tables, ORM models, HTTP endpoints, or provider SDK usage.
+
+## Architecture rules
+
+Kin uses a Go modular monolith with DDD, Clean Architecture, Hexagonal Architecture, CQRS, and Domain Events.
+
+- Dependencies point inward. Domain code must not depend on infrastructure, frameworks, persistence, HTTP, queues, or external providers.
+- Infrastructure is a plugin to the application/domain, not the foundation of the design.
+- Domain models, persistence models, and API DTOs are separate concepts and must not be conflated for convenience.
+- Cross-domain behavior must use explicit application orchestration or contracts; avoid arbitrary imports between modules.
+- Prefer high cohesion inside a domain/module and low coupling between modules.
+- Keep bounded-context boundaries explicit and treat early boundaries as hypotheses that may evolve through domain discovery.
+
+See `.agents/skills/architecture/SKILL.md` for the detailed checklist.
+
+## CQRS rules
+
+Commands and queries are conceptually separate.
+
+Write side:
+- Commands express intent to change state.
+- Domain invariants are enforced before state changes are persisted.
+- Aggregates exist to protect consistency boundaries, not to make UI queries convenient.
+- Meaningful state changes may emit domain events.
+
+Read side:
+- Queries must not mutate domain state.
+- Read models may be denormalized or projection-oriented when useful.
+- Queries may return purpose-built DTOs without reconstructing full write-side aggregates.
+- Read-side convenience must not distort the write-side domain model.
+
+Event Sourcing is not a default requirement.
+
+## AI / external-provider rules
+
+LLMs and external providers are outer adapters.
+
+- Domain code must not know about OpenAI, model names, prompts, JSON response shapes, Spotify, YouTube, or other providers.
+- Provider output must be normalized and validated before entering domain/application logic.
+- Provider-specific failures must be translated at the adapter boundary.
+- Prefer ports that describe required business capabilities rather than vendor APIs.
+
+## Testing contract
+
+Tests must mirror architecture boundaries:
+
+- Domain: fast deterministic unit tests for invariants, value objects, state transitions, and domain events.
+- Application command/use case: tests with fakes/in-memory ports; no real database or external network.
+- Query/read model: filtering, ordering, privacy projection, pagination, and returned shape.
+- Adapters: integration or contract tests against concrete persistence/provider boundaries.
+- End-to-end: only critical vertical flows; do not use E2E tests to compensate for missing lower-level tests.
+
+See `.agents/skills/testing/SKILL.md` for detailed rules.
+
+## Issue-driven workflow
+
+Before editing code, every agent must:
+
+1. Read this file.
+2. Read the current issue completely, including acceptance criteria and non-goals.
+3. Read only the relevant product / MVP / architecture documents.
+4. Identify the affected domain(s), interaction(s), command(s), query(s), and boundaries.
+5. State assumptions explicitly in the PR when the issue leaves material ambiguity.
+
+During implementation:
+
+- Keep scope limited to the issue.
+- Implement from inner layers outward.
+- Prefer the smallest coherent vertical change.
+- Do not introduce infrastructure “for later” without an active use case.
+- Do not introduce microservices, distributed CQRS, or Event Sourcing without a dedicated architectural decision.
+
+Before completion:
+
+- Run the smallest relevant tests first, then all repository-required checks.
+- Review the diff for architecture leakage, accidental coupling, and scope creep.
+- Verify every acceptance criterion explicitly.
+- Record test/validation evidence in the PR.
+
+See `.agents/skills/workflow/SKILL.md` for the detailed issue-to-PR workflow.
+
+## Skills
+
+- Architecture: `.agents/skills/architecture/SKILL.md`
+- Testing: `.agents/skills/testing/SKILL.md`
+- Workflow: `.agents/skills/workflow/SKILL.md`
+
+Keep detailed procedures in skills. Keep this file concise, normative, and stable.
