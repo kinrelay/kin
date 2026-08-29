@@ -22,8 +22,13 @@ type Identity struct {
 	id ID
 }
 
-func New(id ID) Identity {
-	return Identity{id: id}
+func New(id ID) (Identity, error) {
+	normalizedID, err := NewID(string(id))
+	if err != nil {
+		return Identity{}, err
+	}
+
+	return Identity{id: normalizedID}, nil
 }
 
 func (i Identity) ID() ID {
