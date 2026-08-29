@@ -8,6 +8,9 @@ import (
 )
 
 func (f *friendshipRepositoryFake) CreateIfAbsent(_ context.Context, friendship domainfriendship.Friendship) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	key := friendshipKey(friendship.InviterID(), friendship.InviteeID())
 	if _, exists := f.friendships[key]; exists {
 		return false, nil
@@ -17,6 +20,9 @@ func (f *friendshipRepositoryFake) CreateIfAbsent(_ context.Context, friendship 
 }
 
 func (f *friendshipRepositoryFake) UpdateBetween(_ context.Context, first, second domainidentity.ID, update func(*domainfriendship.Friendship) error) (domainfriendship.Friendship, bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	key := friendshipKey(first, second)
 	friendship, exists := f.friendships[key]
 	if !exists {
