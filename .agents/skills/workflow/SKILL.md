@@ -90,13 +90,38 @@ Do not mark work complete merely because code compiles or an agent reports “do
 
 ## Review handling
 
-For every substantive review comment:
+Every substantive human or automated review comment must be processed explicitly.
 
-- respond with the fix, or
-- explain why the suggestion is declined/not applicable.
+For each actionable comment:
+
+1. Read and assess the suggestion against the issue scope and repository contracts.
+2. If work is still in progress after reading it, add an 👀 reaction where supported so reviewers can see it has been acknowledged.
+3. Either:
+   - fix the issue and reply with what changed, or
+   - decline the suggestion and reply with a concrete technical reason.
+4. If the resulting diff changes executable behavior or relevant configuration, rerun the smallest affected validation checks.
+5. Resolve the review thread when the platform supports it and the disposition is complete.
 
 Do not silently ignore review feedback.
 
-If a review has been read and work is still in progress, use an acknowledgment such as an eyes reaction where the platform/workflow supports it.
+### CodeRabbit
 
-After changes from review, rerun checks affected by the new diff before merge.
+When CodeRabbit is enabled for the repository:
+
+- Treat its actionable findings as external review input, not as architectural authority.
+- Repository contracts (`AGENTS.md`, local contracts, issue acceptance criteria, and relevant skills) remain the source of truth.
+- Automatic review is expected on non-draft PRs.
+- Do not request automatic review for draft PRs unless a task explicitly requires it.
+- Review feedback must be handled with the same fix-or-explicit-decline policy as human feedback.
+- A green CI result does not make the PR merge-ready while actionable CodeRabbit feedback remains unresolved.
+
+## Merge readiness
+
+Before merge, verify all of the following:
+
+- Acceptance criteria are satisfied.
+- Required CI/checks have passed for the current diff.
+- The final diff has been self-reviewed for scope and architecture leakage.
+- All actionable human and automated review feedback is fixed or explicitly declined.
+- Review-driven changes have been revalidated where relevant.
+- No known unresolved blocker remains hidden in a review thread or PR conversation.
