@@ -39,7 +39,7 @@ jobs:
             head_sha="$GITHUB_SHA"
           fi
 
-          api="$(./scripts/ci/detect-backend-changes.sh "$mode" "$base_sha" "$head_sha")"
+          api="$(bash ./scripts/ci/detect-backend-changes.sh "$mode" "$base_sha" "$head_sha")"
           echo "api=$api" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go
