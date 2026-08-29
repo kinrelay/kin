@@ -469,9 +469,14 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 
 若已有 pending notification intent，application orchestration 必須在實際 dispatch 前重新取得最新 Privacy & Sharing decision，並**重新計算當下 relationship-specific `Context Projection` / detail level**，不能只檢查 disclosure 是否仍為 valid。
 
+- 每個 delivery intent 必須記錄產生目前 projection 時所依據的 privacy policy revision 與 relationship revision。
+- Dispatch authorization 必須在同一個 atomic boundary 內完成「確認 revision 仍為最新」與「把 delivery intent 轉成可送出的 committed / dispatchable state」；不能先驗證、離開 atomic boundary，再直接送出舊 payload。
+- 若 atomic boundary 內發現 privacy 或 relationship revision 已改變，舊 authorization 立即失效，必須重新取得最新 decision 並重新投影，或取消 delivery。
 - 若 disclosure 在排程後、dispatch 前已 revoked / invalid，pending intent 必須取消或標記 invalid，不得送出。
 - 若 disclosure 仍有效但 detail level 已降低，舊 intent 若包含超出最新 policy 的 projection，必須以最新較低 detail 的 projection 更新 delivery intent，或在無法安全更新時取消。
-- Notification 本身不解讀 privacy policy，也不得沿用舊的 friend-visible payload；它只接受 dispatch-time 重新授權且重新投影後的 delivery intent。
+- Notification 本身不解讀 privacy policy，也不得沿用舊的 friend-visible payload；它只接受已在 atomic dispatch authorization boundary 中確認 revision 並重新授權 / 重新投影後的 delivery intent。
+
+這個 contract 不指定 database transaction、lock、CAS 或 queue implementation；實作可以依當下 architecture 選擇機制，但不得讓「reauthorize → policy/relationship 變更 → send 舊 payload」的 race 成立。
 
 ## Domains Involved
 
@@ -490,11 +495,12 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 - least-revealing valid projection
 - relationship-specific visibility
 - revocation / detail downgrade
+- privacy policy revision
 - dispatch-time projection re-evaluation contract
 
 ### Friendship
 
-提供 relationship state / closeness input，但不直接決定 disclosure policy。
+提供 relationship state / closeness input 與 relationship revision，但不直接決定 disclosure policy。
 
 ### Social Context
 
@@ -526,8 +532,12 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 - [ ] 非 owner 的第三人修改 disclosure policy 必須失敗。
 - [ ] Revocation 或 detail downgrade 會影響後續 query / surface。
 - [ ] Pending notification intent 在 dispatch 前必須重新取得最新 privacy decision，並重新計算 relationship-specific `Context Projection` / detail level；不得直接沿用排程時保存的舊 projection。
+- [ ] Delivery intent 必須綁定產生 projection 時的 privacy policy revision 與 relationship revision。
+- [ ] Revision check 與 delivery intent 進入 committed / dispatchable state 的 transition 必須位於同一 atomic boundary；若 revision 不符，舊 payload 不得成為可送出狀態。
 - [ ] 若 disclosure 已 revoked / invalid，pending intent 必須取消或失效且不可送出。
 - [ ] 若 disclosure 仍有效但 detail level 已降低，pending intent 必須更新成最新較低 detail 的 projection，或在無法安全更新時取消；不得送出舊的較詳細 context。
+- [ ] Acceptance test 必須覆蓋 race：在 reauthorization / projection 完成後、delivery commit 前插入 revoke 或 detail downgrade，驗證 revision mismatch 會觸發重新投影或取消，且舊 payload 不會被送出。
+- [ ] Acceptance test 必須覆蓋 relationship revision race：若 relationship 在 reauthorization 與 delivery commit 之間失效或改變，舊 delivery intent 不得被送出。
 - [ ] 沒有 permission 必須解讀為不可揭露。
 - [ ] Privacy evaluation 必須發生在 Relevance / Friend Pulse 之前。
 
@@ -538,6 +548,7 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 - machine-learned privacy policy
 - organization / group sharing
 - public sharing
+- 指定 transaction / lock / CAS / queue 技術
 
 ## Dependencies
 
@@ -546,7 +557,7 @@ Friend-facing read side 必須從 authenticated caller identity 判斷 viewer，
 
 ## Slice Completion Signal
 
-當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」，只有 active relationship participant 能取得 projection、只有 Context Owner 能控制 disclosure，且任何尚未 dispatch 的 disclosure 都會在送出前依最新 policy 重新授權與重新投影，使 revocation 或 detail downgrade 都不會送出過期或過度詳細的 context 時，MVP 3 才具備進入下一 slice 的條件。
+當系統能可靠回答「對這位 specific friend，這份 context 現在到底能不能看、能看到多少」，只有 active relationship participant 能取得 projection、只有 Context Owner 能控制 disclosure，且任何尚未 dispatch 的 disclosure 都會綁定 privacy / relationship revision，並在同一 atomic boundary 內完成 revision validation 與 delivery state transition；任何中途 revocation、detail downgrade 或 relationship change 都會讓舊 authorization 失效並觸發重新投影或取消，確保過期或過度詳細的 payload 永遠不會進入可送出狀態時，MVP 3 才具備進入下一 slice 的條件。
 
 ---
 
