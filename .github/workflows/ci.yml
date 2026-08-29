@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect backend-relevant changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+          fi
+
+          git diff --name-only "$base_sha" "$GITHUB_SHA" | tee /tmp/changed-files.txt
+
+          if grep -Eq '^(apps/api/|Makefile$|\.github/workflows/ci\.yml$)' /tmp/changed-files.txt; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go
+        if: steps.changes.outputs.api == 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/api/go.mod
+          cache: false
+
+      - name: Run canonical tests
+        if: steps.changes.outputs.api == 'true'
+        run: make test
+
+      - name: Skip executable tests for docs-only/non-backend diff
+        if: steps.changes.outputs.api != 'true'
+        run: echo "No backend executable/config changes detected; skipping Go tests."
