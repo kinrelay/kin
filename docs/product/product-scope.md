@@ -1,748 +1,802 @@
-# Kin Product Scope and Domain Map
+# Kin 產品範圍與 Domain Map
 
-## Purpose
+## 文件目的
 
-This document defines Kin at a complete but intentionally low-resolution product and domain level. It exists to give humans and coding agents a stable conceptual map before implementation details are chosen.
+這份文件以「完整，但刻意維持低解析度」的方式定義 Kin 的產品範圍與主要 Domain。
 
-It describes what the system is responsible for, which business concepts matter, and how major domains interact. It does **not** define database schemas, HTTP endpoints, provider SDK usage, deployment topology, or other infrastructure choices.
+它的目的，是在選擇 database schema、HTTP API、provider SDK、queue、deployment topology 或其他 infrastructure 細節之前，先建立一份穩定的產品與 domain 概念地圖，讓人類與 AI coding agents 都能使用一致的語彙理解系統責任與邊界。
 
-Some domain boundaries in this document are hypotheses. They should evolve when real user behavior, domain discovery, or implementation evidence shows that a different boundary is more coherent.
-
----
-
-## Product mission
-
-Kin helps real friends maintain meaningful relationships by preserving lightweight, permissioned context about each other's lives and interests.
-
-The product is based on a simple observation: adults often still care about their friends, but they lose day-to-day context. When enough context disappears, restarting a conversation takes more effort than it should.
-
-Kin aims to preserve that context continuity without asking users to constantly post, publish, or manage a traditional social feed.
-
-Conceptually:
-
-`Digital Footprints -> AI-Curated Identity Signals -> Permissioned Friendship Context -> Better Human Conversation`
-
-Kin should reduce the effort required to remember what matters to a friend and increase the chance that a useful, natural conversation starts.
+本文件中的部分 domain / bounded-context 邊界只是目前的 hypothesis。若未來從真實使用者行為、domain discovery 或實作證據中發現更高 cohesion 的切分方式，應允許調整，而不是把早期文件當成不可變的服務邊界。
 
 ---
 
-## What Kin is
+## 產品使命
 
-Kin is an ambient friendship-context system.
+Kin 希望幫助真實世界中的朋友維持關係，透過低摩擦、經授權、具隱私邊界的方式，保留彼此最近生活、興趣與思考方向中的重要 context。
 
-It may ingest explicitly authorized activity signals, derive higher-level social context, apply relationship-aware privacy rules, and surface only the context that is likely to help a real friendship.
+核心觀察很簡單：成年人通常不是不在乎朋友，而是逐漸失去彼此的日常 context。當 context 消失到一定程度，即使還想聯絡，也會因為「不知道對方最近在幹嘛」而增加重新開啟對話的摩擦。
 
-Examples of useful context:
+Kin 想維持這種 **context continuity**，但不要求使用者持續發文、整理近況、經營 feed，或記得主動分享。
 
-- A friend has recently become interested in a new topic.
-- A friend is repeatedly researching a specific problem.
-- Two friends are independently exploring the same subject.
-- A friend's recent behavior suggests a meaningful change in interests.
-- A previously active friendship has gone quiet and there is a relevant reason to reconnect.
+概念上：
 
-The system should prefer derived meaning over raw activity logs.
+`Digital Footprints → AI Curated Context → Permissioned Friendship Context → Better Human Conversation`
 
-For example:
+Kin 的目標不是讓使用者把更多注意力留在產品裡，而是降低理解朋友近況的成本，增加自然對話發生的機會。
 
-- Raw signal: liked five videos about AI agents.
-- Derived context: recently exploring AI agents for product workflows.
+> We don't want your attention. We want to give it back to your friends.
 
 ---
 
-## What Kin is not
+## Kin 是什麼
 
-Kin is not intended to be:
+Kin 是一個 **ambient friendship-context system**。
 
-- a high-volume public social network;
-- an engagement-maximization feed;
-- a system that republishes every digital action;
-- a surveillance product;
-- a replacement for direct human communication;
-- a generic life-logging database;
-- a product where users must constantly remember to post in order for it to be useful.
+它可以接收使用者明確授權的 digital activity signals，從中辨識較高階、具社交意義的 context，再依照 relationship-aware privacy rules，決定哪些內容值得、而且允許被特定朋友知道。
 
-The guiding principle is:
+有價值的 context 可能包括：
 
-> We do not want the user's attention. We want to give it back to their friends.
+- 某位朋友最近開始持續關注一個新主題。
+- 某位朋友反覆研究同一個問題，代表這件事近期可能很重要。
+- 兩位朋友正在獨立探索相近主題，形成可自然開啟對話的共同交集。
+- 某位朋友的興趣出現明顯變化，而不是只有單次行為。
+- 一段原本活躍的關係安靜了一段時間，而現在剛好出現值得重新聯絡的 context。
+
+系統應優先分享 **derived meaning**，而不是 raw activity log。
+
+例如：
+
+- Raw signal：最近按讚了五支 AI agents 影片。
+- Derived context：最近持續在研究 AI agents 如何用於產品工作流程。
 
 ---
 
-## Core product principles
+## Kin 不是什麼
 
-### 1. Context continuity over content production
+Kin 不應被設計成：
 
-Kin should help friends stay aware of meaningful changes without requiring continuous manual posting.
+- 高流量的公開 social network。
+- 以 engagement、scrolling time 或 impression 最大化為核心的 feed。
+- 把每一個 digital action 直接重新發布的系統。
+- surveillance product。
+- 取代真實人際互動的 AI friend。
+- generic life-logging database。
+- 需要使用者一直記得發文，產品才有價值的工具。
 
-### 2. Derived context over raw activity
+Kin 的存在目的是幫助真實朋友更容易理解彼此與重新開始對話，而不是增加另一個需要被經營的數位人格。
 
-Raw behavior is private input. Shared output should usually be higher-level meaning.
+---
 
-The preferred transformation is:
+## 核心產品原則
 
-`Raw Behavior -> Interest Detection -> Significant Change -> Friendship Context`
+### 1. Context continuity 優先於 content production
 
-not:
+Kin 應幫助朋友維持對彼此的基本認知，不要求持續手動產生 social content。
 
-`Raw Behavior -> Social Feed`
+### 2. Derived context 優先於 raw activity
+
+Raw behavior 是 private input。可分享的 output 應通常是更高階的語意，而不是原始事件。
+
+建議流程：
+
+`Raw Behavior → Interest Detection → Significant Change → Friendship Context`
+
+而不是：
+
+`Raw Behavior → Social Feed`
 
 ### 3. Permissioned by default
 
-A user should control whether a signal can contribute to shared friendship context and at what relationship level that context may be visible.
+使用者必須能控制某類 signal 是否可參與 social-context derivation，以及最後能分享給哪些 relationship。
 
 ### 4. Sensitive by default
 
-When uncertainty exists, the system should prefer withholding or abstracting information rather than oversharing it.
+當是否適合分享存在不確定性時，系統應優先隱藏、降低細節或不分享，而不是過度揭露。
 
 ### 5. Relationship-aware disclosure
 
-The same underlying signal may produce different projections for different relationships.
+同一份 underlying context 對不同 relationship 可以有不同 detail level。
 
-Example:
+例如：
 
-- Friend: "Recently researching AI products."
-- Close Friend: "Researching AI products for non-technical founders."
-- Inner Circle: "Thinking about an AI product specifically for friendship maintenance."
+- Friend：最近在研究 AI 產品。
+- Close Friend：最近在研究給非技術創業者使用的 AI 產品。
+- Inner Circle：最近在思考一個專門協助維持朋友關係的 AI 產品。
 
 ### 6. Explainability
 
-When context is surfaced, Kin should be able to explain at a high level why it was considered relevant and why it was allowed to be shared.
+當 Kin 決定顯示一則 context 時，應能在合理抽象層級說明：
 
-### 7. Human conversation is the outcome
+- 為什麼這件事被判斷為有意義。
+- 為什麼現在值得顯示。
+- 為什麼這位朋友有權看到這個 detail level。
 
-The product should optimize for meaningful conversation and relationship continuity rather than impressions, scrolling time, or posting volume.
+### 7. Human conversation 才是 outcome
 
----
+Kin 應優先優化：
 
-## Product success
+- 是否產生有意義的 conversation。
+- 是否維持 friendship continuity。
+- 是否幫助長時間未互動的朋友重新連結。
 
-Primary success signals should reflect relationship value rather than attention capture.
-
-Candidate outcome metrics include:
-
-- conversations started from Kin context;
-- dormant friendships reactivated;
-- friendships maintained over time;
-- users reporting better awareness of close friends' lives;
-- context items that lead to meaningful follow-up;
-- useful shared-interest discoveries.
-
-DAU, session time, and feed impressions may be operational metrics, but they are not the primary product purpose.
+而不是單純增加 app 使用時間。
 
 ---
 
-## Primary actors
+## 成功衡量方向
+
+主要 outcome metrics 應反映 relationship value，而不是 attention capture。
+
+候選指標：
+
+- Conversations Started
+- Friendships Maintained
+- Dormant Friendships Reactivated
+- 使用者是否更了解 close friends 最近的生活與興趣
+- 有多少 context 真正帶來 follow-up conversation
+- Shared-interest discovery 是否促成互動
+
+DAU、session time、feed impressions 可以作為 operation metrics，但不應成為產品核心 success definition。
+
+---
+
+## 主要 Actors
 
 ### User
 
-A person who owns a Kin identity, contributes or authorizes activity signals, manages relationship/privacy settings, receives context about friends, and may initiate conversation from that context.
+擁有 Kin identity 的使用者，可以：
+
+- 授權或主動提供 activity signals。
+- 管理 friendship 與 privacy settings。
+- 接收朋友的 permissioned context。
+- 從 context 開啟 conversation。
 
 ### Friend
 
-Another Kin user connected through an accepted relationship.
+與 User 建立有效 relationship 的另一位 Kin user。
 
-### Relationship participant
+### Relationship Participant
 
-A user viewed specifically in the context of one friendship. The same user can have different permissions and projections across different relationships.
+從「某一段 friendship」角度來看的使用者。
 
-### External activity provider
+同一個 User 在不同 relationship 中，可以擁有不同 closeness、privacy policy 與 context projection。
 
-A system that can contribute authorized signals, such as a music, video, reading, browser, AI assistant, or other digital service.
+### External Activity Provider
 
-Providers are external actors. They are not part of Kin's domain model and must not define the product architecture.
+能提供經授權 signals 的外部系統，例如 music、video、reading、browser、AI assistant 或其他 digital services。
 
-### AI context generator
+Provider 是外部 actor，不是 Kin domain model 的一部分，也不能反過來定義 Kin 的 domain architecture。
 
-An external capability used to classify, summarize, normalize, or derive context. It is an adapter capability, not a source of domain truth.
+### AI Context Generator
+
+用於 classify、summarize、normalize 或 derive context 的外部能力。
+
+AI 是 adapter capability，不是 domain truth 的來源。
 
 ---
 
-## High-level capability map
+## High-level Capability Map
 
-Kin's long-term product capabilities can be grouped into the following areas.
+### Identity 與 relationship setup
 
-### Identity and relationship setup
-
-- establish a user identity;
-- discover or invite another person;
-- connect two people;
-- represent relationship closeness;
-- manage relationship lifecycle.
+- 建立 Kin identity。
+- 發現或邀請另一位使用者。
+- 建立 friendship。
+- 表達 relationship closeness / trust。
+- 管理 relationship lifecycle。
 
 ### Activity contribution
 
-- receive explicitly authorized digital activity;
-- accept manual contribution when integrations are unavailable;
-- normalize heterogeneous activity into Kin concepts;
-- distinguish raw signals from socially meaningful context.
+- 接收明確授權的 digital activity。
+- 當 integration 不可用時，接受低摩擦的 manual contribution。
+- 將不同 provider 的活動正規化成 Kin 可理解的概念。
+- 區分 raw signal、normalized activity 與 socially meaningful context。
 
 ### Social-context derivation
 
-- identify recurring interests;
-- detect meaningful changes;
-- infer candidate context from multiple signals;
-- suppress low-signal or repetitive information;
-- attach provenance/explanation metadata.
+- 辨識 recurring interests。
+- 偵測 Significant Change。
+- 從多個 signals 推導 Context Candidate。
+- 抑制低訊號、重複或過度細碎的資訊。
+- 保留適當的 provenance / explanation metadata。
 
-### Privacy and sharing
+### Privacy & Sharing
 
-- determine whether a candidate context may be shared;
-- project different detail levels by relationship;
-- honor user preferences and sensitive-data rules;
-- support opt-out and revocation.
+- 判斷 Context Candidate 是否可被分享。
+- 根據 relationship 投影不同 detail level。
+- 套用 user preferences 與 sensitive-data policy。
+- 支援 opt-out、revocation 與 suppression。
 
-### Relevance and prioritization
+### Relevance & Prioritization
 
-- determine whether a valid context item is worth surfacing now;
-- rank context for a specific relationship;
-- suppress noise and stale information;
-- identify serendipitous overlap.
+- 判斷一則已允許分享的 context 是否值得現在顯示。
+- 針對特定 relationship ranking。
+- 抑制 stale / repetitive context。
+- 偵測 serendipitous overlap。
 
-### Friend pulse
+### Friend Pulse
 
-- summarize what is worth knowing about a friend;
-- surface a small number of useful context items;
-- avoid a high-volume chronological feed.
+- 濃縮「目前最值得知道的朋友近況」。
+- 每次只顯示少量高訊號 context。
+- 避免退化成高流量 chronological feed。
 
-### Conversation support
+### Conversation Support
 
-- generate a context-aware conversation starter;
-- help a user ask a useful question about a friend;
-- explain why a topic may be worth discussing;
-- track whether context led to interaction when appropriate.
+- 產生 context-aware conversation starter。
+- 幫助使用者問出自然且相關的問題。
+- 解釋為什麼某個主題值得聊。
+- 在合適範圍內追蹤 context 是否帶來 interaction。
 
 ### Integration
 
-- connect external providers;
-- maintain provider authorization state;
-- ingest provider events or pull activity;
-- isolate provider-specific payloads and errors.
+- 連接 external providers。
+- 維護 provider authorization state。
+- ingest / pull provider activity。
+- 隔離 provider-specific payload、error 與 retry concerns。
 
 ### Notification
 
-- notify users when meaningful context is available;
-- avoid excessive interruption;
-- support digest and low-frequency delivery patterns.
+- 在有 meaningful context 時通知使用者。
+- 避免 excessive interruption。
+- 支援 digest、low-frequency delivery 等模式。
 
-### Social memory
+### Social Memory
 
-Longer-term, Kin may help a user remember meaningful shared history, recurring interests, or prior context without turning private conversation into indiscriminate searchable surveillance.
+長期而言，Kin 可以協助保留 shared history、recurring interests 與過往重要 context，但不能因此變成對私人對話進行無限制搜尋或監控的系統。
 
 ---
 
-## Candidate domains / bounded contexts
+## 候選 Domains / Bounded Contexts
 
-The following are candidate domain boundaries, not final service boundaries.
+以下都是 **候選 domain boundaries**，不是最終 service boundaries。
 
 ### Identity
 
-**Responsibility**
+**責任**
 
-Represents a Kin user as a participant in the product.
+代表一位 Kin 使用者作為產品參與者的身份與 account-level 狀態。
 
 **Owns**
 
-- stable user identity;
-- basic profile-level information required by Kin;
-- account-level lifecycle state;
-- user-level preferences that are not specific to one friendship.
+- stable user identity
+- Kin 必要的 profile-level information
+- account lifecycle state
+- 非 friendship-specific 的 user preferences
 
 **Does not own**
 
-- friendship state;
-- provider-specific OAuth internals;
-- relationship-specific privacy;
-- derived social context.
+- friendship state
+- provider-specific OAuth internals
+- relationship-specific privacy
+- derived social context
 
-**Classification candidate**
+**Classification hypothesis**
 
-Supporting domain.
+Supporting Domain。
 
 ---
 
 ### Friendship
 
-**Responsibility**
+**責任**
 
-Represents the explicit relationship between two Kin users and the relationship state required for friendship-aware product behavior.
+代表兩位 Kin users 之間明確存在的 relationship，以及 friendship-aware product behavior 所需的 relationship state。
 
 **Owns**
 
-- relationship creation/acceptance;
-- active/inactive relationship lifecycle;
-- relationship participants;
-- relationship-level closeness or trust classification;
-- relationship-specific state that is not itself a privacy policy.
+- relationship creation / acceptance
+- active / inactive lifecycle
+- relationship participants
+- closeness / trust classification
+- 非 privacy policy 本身的 relationship-specific state
 
 **Does not own**
 
-- user identity;
-- raw activity;
-- social-context generation;
-- notification delivery.
+- user identity
+- raw activity
+- social-context generation
+- notification delivery
 
-**Important invariants**
+**重要 invariants**
 
-- a friendship refers to valid participants;
-- relationship transitions are explicit;
-- relationship-specific behavior must not silently apply globally to a user.
+- Friendship 必須引用有效 participants。
+- Relationship transition 必須是明確行為。
+- Relationship-specific state 不可無意間變成 user-global state。
 
-**Classification candidate**
+**Classification hypothesis**
 
-Core domain.
+Core Domain。
 
 ---
 
 ### Activity
 
-**Responsibility**
+**責任**
 
-Represents authorized signals about what a user has done, consumed, saved, liked, watched, listened to, researched, or otherwise chosen to contribute to Kin.
+代表使用者明確授權 Kin 使用的 signals，例如看過、收藏、按讚、聽過、研究過、閱讀過或主動提供的活動。
 
 **Owns**
 
-- normalized activity concepts;
-- activity provenance;
-- authorization/contribution intent relevant to the activity;
-- timestamps and semantic activity metadata;
-- distinction between raw/normalized input and derived context.
+- normalized activity concepts
+- activity provenance
+- 與該 activity 有關的 contribution / authorization intent
+- timestamp 與 semantic metadata
+- raw / normalized input 與 derived context 的區分
 
 **Does not own**
 
-- provider connection lifecycle;
-- whether a friend may see the activity;
-- final social-context wording;
-- friend-specific relevance ranking.
+- provider connection lifecycle
+- friend 是否能看到這項 activity
+- 最終 social-context wording
+- friend-specific relevance ranking
 
-**Important principle**
+**重要原則**
 
-An activity is not automatically a shareable social item.
+Activity 不等於 shareable social item。
 
-**Classification candidate**
+**Classification hypothesis**
 
-Core or supporting domain; this boundary should be revisited after real ingestion use cases exist.
+Core 或 Supporting Domain。需等真實 ingestion use cases 出現後再重新判斷。
 
 ---
 
 ### Social Context
 
-**Responsibility**
+**責任**
 
-Turns one or more activities or other authorized signals into a socially meaningful, human-readable context candidate.
+把一個或多個 authorized signals 轉換為 socially meaningful、human-readable 的 Context Candidate。
 
 **Owns**
 
-- context candidates;
-- semantic topic/meaning;
-- significance/change interpretation;
-- context lifecycle such as candidate, approved, suppressed, expired;
-- provenance linking context back to source signals at an abstract level.
+- Context Candidate
+- topic / semantic meaning
+- significance / change interpretation
+- context lifecycle，例如 candidate、approved、suppressed、expired
+- 與 source signals 的 abstract provenance
 
 **Does not own**
 
-- provider API payloads;
-- friendship relationship state;
-- final friend-specific privacy projection;
-- delivery channel.
+- provider API payload
+- friendship lifecycle
+- final friend-specific privacy projection
+- delivery channel
 
-**Important invariants**
+**重要 invariants**
 
-- raw provider output is not a domain context object;
-- context should be validated/normalized before entering the domain;
-- one raw action should not automatically become one context item.
+- Raw provider output 不能直接成為 domain Context。
+- Provider / LLM output 必須先 normalization + validation，再進入 domain。
+- 一個 raw action 不應自動等於一個 context item。
 
-**Classification candidate**
+**Classification hypothesis**
 
-Core domain.
+Core Domain。
 
 ---
 
 ### Privacy & Sharing
 
-**Responsibility**
+**責任**
 
-Determines whether and at what level a context item can be disclosed to a specific relationship.
+判斷某個 Context 對某一段 specific relationship 是否可揭露，以及可揭露到什麼 detail level。
 
 **Owns**
 
-- disclosure policy;
-- relationship-aware visibility rules;
-- user sharing preferences;
-- sensitive-content policy;
-- projection/detail level;
-- revocation and suppression decisions.
+- disclosure policy
+- relationship-aware visibility rules
+- user sharing preferences
+- sensitive-content policy
+- projection / detail level
+- revocation / suppression decision
 
 **Does not own**
 
-- friendship lifecycle itself;
-- generation of the semantic context;
-- ranking of otherwise valid context;
-- external provider authorization.
+- friendship lifecycle
+- semantic context generation
+- 已允許 context 的 relevance ranking
+- provider authorization
 
-**Important invariants**
+**重要 invariants**
 
-- default to the least revealing valid representation;
-- absence of permission is not permission;
-- raw activity should not leak merely because derived context is shareable;
-- a disclosure decision is relationship-specific.
+- Default 採 least-revealing valid representation。
+- 沒有 permission 不等於有 permission。
+- Derived context 可分享，不代表 raw activity 也能分享。
+- Disclosure decision 必須是 relationship-specific。
 
-**Classification candidate**
+**Classification hypothesis**
 
-Core domain.
+Core Domain。
 
 ---
 
 ### Relevance
 
-**Responsibility**
+**責任**
 
-Determines which already-valid context is useful enough to surface for a specific user/relationship at a specific time.
+從「已經允許該 relationship 看到」的 context 中，判斷什麼內容現在值得 surfaced。
 
 **Owns**
 
-- ranking signals;
-- novelty/staleness decisions;
-- repetition suppression;
-- shared-interest opportunity detection;
-- prioritization for a pulse or digest.
+- ranking signals
+- novelty / staleness decision
+- repetition suppression
+- shared-interest opportunity detection
+- Friend Pulse / digest prioritization
 
 **Does not own**
 
-- whether context is legally/privacy-allowed to be shared;
-- semantic generation of the context;
-- notification transport.
+- context 是否允許被分享
+- semantic context generation
+- notification transport
 
-**Classification candidate**
+**重要原則**
 
-Core or supporting domain depending on how differentiated Kin's ranking behavior becomes.
+Relevance 不能繞過 Privacy & Sharing。
+
+**Classification hypothesis**
+
+可能是 Core 或 Supporting Domain，取決於未來 Kin 的 ranking / timing intelligence 是否形成明顯 differentiation。
 
 ---
 
 ### Conversation / Interaction
 
-**Responsibility**
+**責任**
 
-Represents product behavior that helps friendship context turn into a real interaction.
+讓 friendship context 能自然轉化成真實互動。
 
 **Owns**
 
-- conversation-starting intents;
-- context-based prompts/questions;
-- interaction outcomes that Kin explicitly tracks;
-- product-level state for "start a conversation" flows.
+- conversation-starting intent
+- context-based prompt / question
+- Kin 明確追蹤的 interaction outcome
+- 「聊聊這個」等 product-level interaction state
 
 **Does not own**
 
-- private third-party chat histories;
-- general messaging infrastructure unless Kin later becomes a messaging product;
-- friendship permissions;
-- context derivation.
+- 第三方 private chat history
+- generic messaging infrastructure，除非 Kin 未來真的成為 messaging product
+- friendship permission
+- context derivation
 
-**Classification candidate**
+**Classification hypothesis**
 
-Core product experience, but likely a supporting domain in early MVP implementation.
+屬於核心 product experience，但 MVP 初期可能仍是 Supporting Domain。
 
 ---
 
 ### Integration
 
-**Responsibility**
+**責任**
 
-Manages connections to external systems that can contribute or receive data.
+管理與 external systems 的連接與資料交換邊界。
 
 **Owns**
 
-- provider connection state;
-- external authorization lifecycle;
-- sync/checkpoint state;
-- provider-specific normalization boundary;
-- error translation and retries as integration concerns.
+- provider connection state
+- external authorization lifecycle
+- sync / checkpoint state
+- provider-specific normalization boundary
+- integration error translation / retry concerns
 
 **Does not own**
 
-- Kin domain activities after normalization;
-- social-context meaning;
-- friendship state;
-- privacy disclosure policy.
+- normalization 後的 Kin Activity domain behavior
+- social-context meaning
+- friendship state
+- privacy disclosure policy
 
-**Classification candidate**
+**Classification hypothesis**
 
-Generic/supporting domain.
+Generic / Supporting Domain。
 
 ---
 
 ### Notification
 
-**Responsibility**
+**責任**
 
-Delivers already-authorized, already-relevant product messages through appropriate channels and timing.
+把已被允許、已被判斷值得 surfaced 的 product intent，在適當時間與 channel 送達使用者。
 
 **Owns**
 
-- notification intent;
-- delivery scheduling/preferences;
-- channel selection;
-- delivery status.
+- notification intent
+- delivery timing / preferences
+- channel selection
+- delivery status
 
 **Does not own**
 
-- whether context may be disclosed;
-- whether context is semantically meaningful;
-- friendship state.
+- context 是否允許分享
+- context 是否有 semantic meaning
+- friendship state
 
-**Classification candidate**
+**Classification hypothesis**
 
-Generic/supporting domain.
+Generic / Supporting Domain。
 
 ---
 
-## Domain interactions
+## Domain Interactions
 
-These interactions describe conceptual dependencies, not synchronous service calls.
+以下描述的是 conceptual dependency，不代表 synchronous service call，也不代表未來必須拆成 microservices。
 
-### Activity contribution to social context
+### Activity contribution → Social Context
 
-`Integration -> Activity -> Social Context`
+`Integration → Activity → Social Context`
 
-An external provider may contribute a signal through the Integration boundary. The signal is normalized into an Activity before Social Context reasons about its meaning.
+External provider 先透過 Integration boundary 提供 signal，再 normalize 成 Kin Activity，Social Context 才能針對 Kin concepts 判斷意義。
 
-Provider-specific DTOs must not cross into the Activity or Social Context domain model.
+Provider-specific DTO 不得穿透到 Activity / Social Context domain model。
 
 ### Context disclosure
 
-`Social Context + Friendship + Privacy & Sharing -> Relationship-specific Context Projection`
+`Social Context + Friendship + Privacy & Sharing → Relationship-specific Context Projection`
 
-A context item is not friend-visible merely because it exists. The relevant relationship and privacy policy must determine whether it can be disclosed and at what detail level.
-
-### Pulse generation
-
-`Visible Context + Relevance -> Friend Pulse`
-
-Relevance operates only on context that is already eligible for the relationship. Ranking must not bypass privacy.
-
-### Conversation support
-
-`Friend Pulse / Visible Context -> Conversation / Interaction`
-
-Conversation support consumes context that the user is already allowed to see. It must not increase disclosure beyond the underlying context projection.
-
-### Notification
-
-`Relevant Product Intent -> Notification`
-
-Notification delivers an already-approved intent. It must not independently reinterpret privacy or generate new social meaning.
-
----
-
-## Initial ubiquitous language
-
-### Activity
-
-An authorized signal about something a user did, consumed, saved, liked, watched, listened to, researched, or contributed.
-
-### Raw Activity
-
-Provider-shaped or source-shaped activity before Kin normalization and social interpretation.
-
-### Normalized Activity
-
-A provider-independent Kin representation of an activity signal.
-
-### Context Candidate
-
-A possible piece of socially meaningful information derived from one or more authorized signals. It is not necessarily shareable or worth surfacing.
-
-### Social Context
-
-A validated, meaningful description of something worth potentially knowing about a user.
-
-### Context Projection
-
-The relationship-specific representation of a context item after privacy/sharing rules have been applied.
-
-### Friendship
-
-An explicit relationship between two Kin users.
-
-### Relationship Level
-
-A classification of relational closeness/trust that may affect sharing policy. Candidate long-term levels include Acquaintance, Friend, Close Friend, and Inner Circle.
-
-The MVP may intentionally begin with only a single close-friend or inner-circle relationship model rather than exposing the full hierarchy.
+Context 存在，不代表 friend 就能看到。必須把 relevant Friendship 與 Privacy Policy 一起納入判斷，決定是否可揭露與 detail level。
 
 ### Friend Pulse
 
-A small, prioritized set or summary of meaningful, permissioned context about a friend. It is not a chronological activity feed.
+`Visible Context + Relevance → Friend Pulse`
 
-### Significant Change
+只有已經通過 privacy projection 的 context 才能進 ranking。
 
-A meaningful shift or recurring pattern in a user's interests or behavior that is more informative than a one-off raw action.
+Relevance 不可 bypass privacy。
 
-### Shared Rabbit Hole
+### Conversation support
 
-A situation where two friends are independently exploring the same or closely related topic and that overlap may be useful for conversation.
+`Friend Pulse / Visible Context → Conversation / Interaction`
 
-### Friendship Drift
+Conversation support 只能使用使用者原本就有權看到的 context，不可透過 prompt 重新暴露更敏感的內容。
 
-A long-term condition where a relationship has become less active or context continuity has weakened. This is a future product concept, not necessarily MVP scope.
+### Notification
 
-### Social Memory
+`Relevant Product Intent → Notification`
 
-Long-lived relationship context that helps preserve shared history or continuity without exposing unnecessary raw records.
-
----
-
-## Core, supporting, and generic domain hypotheses
-
-These classifications are provisional.
-
-### Likely core domains
-
-- Friendship
-- Social Context
-- Privacy & Sharing
-- potentially Relevance
-- potentially Activity, depending on how much domain-specific behavior emerges around signal meaning
-
-These areas most directly express Kin's differentiation: preserving context for real relationships while controlling what each friend should know.
-
-### Likely supporting domains
-
-- Identity
-- Conversation / Interaction in early phases
-- Activity if it remains mostly normalization and lifecycle behavior
-
-### Likely generic domains
-
-- Integration plumbing
-- Notification delivery
-- infrastructure-level provider connectivity
-
-A domain should not be promoted to "core" merely because it is technically difficult.
+Notification 只負責 delivery，不可自行重新解讀 privacy 或創造新的 social meaning。
 
 ---
 
-## Privacy model direction
+## Initial Ubiquitous Language
 
-The long-term privacy model should be relationship-aware rather than a single global public/private switch.
+### Activity
 
-Candidate relationship levels:
+使用者明確授權的 signal，描述某件他做過、看過、收藏、按讚、聽過、研究過或主動提供的事情。
+
+### Raw Activity
+
+仍保有 provider / source shape、尚未進行 Kin normalization 與 social interpretation 的 activity。
+
+### Normalized Activity
+
+Provider-independent 的 Kin activity representation。
+
+### Context Candidate
+
+由一個或多個 authorized signals 推導出的「可能具有社交意義」資訊。它尚不代表可分享，也不代表值得 surfaced。
+
+### Social Context
+
+已被 validation、具有可理解 social meaning，且可能值得朋友知道的描述。
+
+### Context Projection
+
+某個 Context 經過 relationship-specific privacy / sharing policy 後，得到的可見版本。
+
+### Friendship
+
+兩位 Kin users 之間明確存在的 relationship。
+
+### Relationship Level
+
+表示 closeness / trust 的 relationship classification，可能影響 disclosure policy。
+
+長期候選值：
 
 - Acquaintance
 - Friend
 - Close Friend
 - Inner Circle
 
-The exact taxonomy is not yet fixed.
+MVP 不需要一次實作完整 hierarchy，可以先只驗證 close-friend / inner-circle 類型的關係。
 
-The domain concept that matters is that one source context can safely project different levels of detail to different relationships.
+### Friend Pulse
 
-The MVP should avoid implementing the complete relationship-level system before validating that close-friend context itself is valuable.
+針對某位朋友，少量、經 prioritization、permissioned 的 meaningful context 集合或摘要。
 
----
+它不是 chronological activity feed。
 
-## AI boundary
+### Significant Change
 
-AI is an external capability, not a domain authority.
+相較於單一 raw action，更具資訊價值的 recurring pattern 或明顯興趣變化。
 
-A conceptual application flow may look like:
+### Shared Rabbit Hole
 
-`Authorized Signals -> Application Use Case -> ContextGenerator Port -> AI Adapter -> Normalization/Validation -> Context Candidate -> Domain Rules`
+兩位朋友獨立探索相同或高度相關主題，而這個 overlap 可能形成自然 conversation opportunity。
 
-Rules:
+### Friendship Drift
 
-- model names do not belong in domain code;
-- prompts do not define domain invariants;
-- raw LLM JSON does not become a domain object directly;
-- provider-specific failures are translated at the adapter boundary;
-- domain rules determine whether a normalized candidate is valid, shareable, or useful.
+一段 relationship 長期變得較少互動，或 context continuity 明顯下降的狀態。
 
----
+這是未來 capability，不代表 MVP 必須實作。
 
-## Long-term capability map vs MVP scope
+### Social Memory
 
-This document intentionally includes future capabilities so the system can evolve coherently.
-
-Their presence here does **not** authorize implementation.
-
-Possible long-term capabilities include:
-
-- relationship levels beyond close friends;
-- Friends Pulse;
-- AI Q&A about permitted friend context;
-- conversation starters;
-- weekly friendship digest;
-- serendipity matching;
-- friendship drift detection;
-- shared rabbit holes;
-- social memory;
-- AI friendship concierge;
-- friend-aware relevance;
-- ChatGPT/MCP-style access to permissioned Kin context;
-- broader integrations across media, reading, browsing, AI research, and other digital activity.
-
-The MVP roadmap is the source of truth for sequencing and current validation scope.
+協助維持 shared history / relationship continuity 的長期 context，同時避免不必要的 raw record disclosure。
 
 ---
 
-## MVP direction
+## Core / Supporting / Generic Domain Hypotheses
 
-The initial product should validate the smallest useful form of context continuity among a very small number of close relationships.
+以下 classification 都是 provisional。
 
-Expected direction:
+### Likely Core Domains
 
-- start with roughly 3-5 close friends / inner-circle relationships;
-- use a small number of input sources;
-- derive only a small number of meaningful context items;
-- prefer 1-3 useful contexts over a dense feed;
-- use "Start a conversation" as the important action rather than Like;
-- introduce automated provider integrations only after the domain flow can work with a simpler contribution path.
+- Friendship
+- Social Context
+- Privacy & Sharing
+- 可能是 Relevance
+- 可能是 Activity，取決於未來 signal interpretation 是否形成足夠 domain complexity
 
-The detailed sequence belongs in `docs/product/mvp-roadmap.md`.
+這些區域最直接體現 Kin 的差異化：
 
----
+**在真實 friendship 中維持 context，同時精準控制每個 relationship 到底能知道什麼。**
 
-## Architectural implications
+### Likely Supporting Domains
 
-The product model implies the following implementation direction without defining concrete infrastructure:
+- Identity
+- MVP 初期的 Conversation / Interaction
+- 若 Activity 最終主要只是 normalization / lifecycle，則 Activity 也可能屬於 Supporting
 
-- domain responsibilities should be modeled before persistence;
-- write behavior and read behavior should remain conceptually separate;
-- commands express state-changing intent;
-- queries optimize for interactions without distorting write-side models;
-- domain events may represent meaningful completed business facts;
-- external integrations and AI systems remain adapters;
-- infrastructure should plug into domain/application ports;
-- bounded contexts are initially modules inside a modular monolith, not independent services;
-- Event Sourcing is not required by this product model.
+### Likely Generic Domains
 
----
+- Integration plumbing
+- Notification delivery
+- provider connectivity infrastructure
 
-## Boundary questions to revisit
-
-The following questions are deliberately unresolved and should be answered through product discovery and implementation evidence:
-
-1. Does Activity become a rich core domain or remain a supporting normalization layer?
-2. Does Relevance deserve its own bounded context, or is it initially an application policy around Social Context?
-3. Does Conversation / Interaction become a domain with its own lifecycle, or remain a thin application capability?
-4. Should relationship closeness live entirely in Friendship, while Privacy & Sharing only references it, or should some trust policy be represented independently?
-5. At what point does Social Memory become distinct from Social Context?
-6. Which concepts need strong consistency within one aggregate, and which can remain eventually consistent read projections?
-
-These questions should not be resolved by choosing database tables first.
+技術上困難，不代表一定是 Core Domain。
 
 ---
 
-## Source-of-truth relationship
+## Privacy Model 方向
 
-This document defines long-term product/domain context.
+長期 privacy model 應以 relationship-aware 為核心，而不是單一 global public/private switch。
 
-Implementation precedence remains:
+候選 Relationship Levels：
 
-1. current GitHub issue and explicit acceptance criteria/non-goals;
-2. current MVP roadmap slice;
-3. this product scope and domain map;
-4. root and local `AGENTS.md` contracts;
-5. architecture/testing/workflow skills;
-6. existing implementation conventions.
+- Acquaintance
+- Friend
+- Close Friend
+- Inner Circle
 
-Future capabilities described here are context, not implementation permission.
+Taxonomy 尚未定案。
+
+真正重要的 domain capability 是：
+
+**同一個 source context，能對不同 relationship 安全地產生不同 detail level 的 projection。**
+
+MVP 不應在尚未驗證 close-friend context 本身是否有價值前，就先實作完整 relationship hierarchy。
+
+---
+
+## AI / LLM Boundary
+
+AI 是 external capability，不是 domain authority。
+
+概念流程：
+
+`Authorized Signals → Application Use Case → ContextGenerator Port → AI Adapter → Normalization / Validation → Context Candidate`
+
+核心規則：
+
+- Domain 不知道 OpenAI、Anthropic、Gemini 或 model names。
+- Domain 不知道 prompt template。
+- Raw LLM JSON 不可直接進入 domain object。
+- Provider output 必須先由 adapter 做 normalization / validation。
+- Provider-specific failure 必須在 boundary 被 translate。
+- Port 名稱應描述 business capability，例如 `ContextGenerator`，而不是 vendor API。
+
+Domain truth 最終仍由 Kin 自己的 invariants、policy 與 validated domain objects 決定。
+
+---
+
+## 長期產品能力，不代表 MVP 授權
+
+以下能力合理地屬於 Kin 的 long-term product map，但它們出現在本文件中 **不代表目前可以實作**：
+
+- 完整 Relationship Level hierarchy
+- Friendship Drift Detection
+- Weekly Friendship Digest
+- Shared Rabbit Hole
+- Social Memory
+- Friend-aware AI Q&A，例如「Jerry 最近在幹嘛？」
+- AI Friendship Concierge
+- 多 provider 自動 ingestion
+- 更進階的 relevance / timing intelligence
+- richer conversation outcome tracking
+- widgets / app intents / ambient surfaces
+
+實際 implementation authorization 應由：
+
+1. current GitHub Issue
+2. current MVP slice
+3. repository architecture contracts
+
+共同決定。
+
+Product scope 提供 context，不提供自動實作權限。
+
+---
+
+## 高階不變原則
+
+即使未來 bounded contexts 調整，以下原則應保持穩定：
+
+1. Raw activity private-by-default。
+2. Activity 不等於 Social Context。
+3. Social Context 不等於 friend-visible Context Projection。
+4. Privacy decision 必須先於 Relevance ranking。
+5. Relevance 不可繞過 privacy。
+6. AI / provider 永遠是 outer adapter，而不是 domain authority。
+7. 一個 future capability 出現在 product map，不代表已獲得 implementation authorization。
+8. Infrastructure convenience 不得主導 domain boundary。
+9. Kin 最終服務的是 human relationship，不是 engagement metric。
+
+---
+
+## 尚待 Domain Discovery 驗證的問題
+
+以下問題刻意保留，不在 foundation 階段過早定案：
+
+### Activity 與 Integration 的邊界
+
+- provider normalization 應在哪個 boundary 結束？
+- 哪些 semantic normalization 屬於 Activity，哪些只是 Integration concern？
+
+### Activity 是否為 Core Domain
+
+- 真實 use cases 是否會出現複雜的 activity lifecycle / invariants？
+- 還是 Activity 最終只是 Social Context 上游的 supporting model？
+
+### Social Context 與 Relevance
+
+- Context significance 與 friend-specific relevance 是否應維持分離？
+- 是否會因未來使用資料而形成明確獨立 bounded context？
+
+### Friendship 與 Privacy & Sharing
+
+- Relationship Level 是 Friendship 的 state，還是 Privacy Policy 的 input？
+- 個別 friendship override 應由哪個 domain 擁有？
+
+### Conversation / Interaction
+
+- Kin 是否只協助「開始 conversation」，還是未來會擁有更多 interaction lifecycle？
+- 若真正 conversation 發生在外部 app，Kin 應追蹤到什麼程度？
+
+### Social Memory
+
+- 哪些 long-lived context 值得保存？
+- 如何避免 Social Memory 變成過度監控或不必要的 raw-history retention？
+
+這些問題應由後續 user stories、MVP slices 與真實 domain behavior 逐步回答。
+
+---
+
+## 文件與實作的關係
+
+本文件描述的是 **long-term conceptual product system**。
+
+它不定義：
+
+- database schema
+- REST / GraphQL endpoint
+- persistence technology
+- queue / event infrastructure
+- provider SDK
+- deployment topology
+- microservice boundaries
+
+下一層應由 `docs/product/mvp-roadmap.md` 把產品切成可驗證的 vertical slices，再由 active GitHub Issue 決定目前真正被授權的 implementation scope。
+
+建議閱讀順序：
+
+`Product Scope → MVP Slice → User Story → Use Case → Domain Responsibility → Implementation`
