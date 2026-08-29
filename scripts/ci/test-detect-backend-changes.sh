@@ -22,7 +22,7 @@ git mv apps/api/foo.go docs/foo.go
 git commit -qm 'move backend file out'
 head="$(git rev-parse HEAD)"
 
-result="$($detector pr "$base" "$head")"
+result="$(bash "$detector" pr "$base" "$head")"
 [[ "$result" == "true" ]] || { echo "expected backend rename to be relevant" >&2; exit 1; }
 
 git checkout -q -b main "$base"
@@ -37,7 +37,7 @@ git add docs/readme.md
 git commit -qm 'feature docs change'
 feature_head="$(git rev-parse HEAD)"
 
-result="$($detector pr "$main_head" "$feature_head")"
+result="$(bash "$detector" pr "$main_head" "$feature_head")"
 [[ "$result" == "false" ]] || { echo "expected unrelated base-branch backend change to be ignored" >&2; exit 1; }
 
 echo 'CI diff detector regression tests passed.'
