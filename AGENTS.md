@@ -9,10 +9,28 @@ When instructions conflict, follow this order:
 1. The current GitHub issue and its explicit acceptance criteria / non-goals.
 2. `docs/product/mvp-roadmap.md` for the currently authorized product slice.
 3. `docs/product/product-scope.md` for long-term product/domain context.
-4. Architecture contracts and repo-local skills under `.agents/skills/`.
-5. Existing implementation conventions.
+4. This root `AGENTS.md` and any applicable local `AGENTS.md` files.
+5. Architecture contracts and repo-local skills under `.agents/skills/`.
+6. Existing implementation conventions.
 
 Do not implement future scope merely because it appears in product documentation.
+
+## Hierarchical agent contracts
+
+Kin uses hierarchical agent contracts so the monorepo can scale across backend, mobile, web, workers, and future applications without bloating the root policy.
+
+- The root `AGENTS.md` owns repository-wide policy.
+- A local `AGENTS.md` applies to its directory subtree and owns context-specific constraints for that area.
+- Local contracts inherit all root rules. They may make root rules more concrete or stricter, but must never weaken or contradict them.
+- Repo-local skills under `.agents/skills/` own reusable procedures, checklists, and technology-specific how-to guidance.
+- Agents working inside a subtree must read the root contract first, then the nearest applicable local contract, then only the skills relevant to the task.
+- Keep policy in `AGENTS.md`; keep repeatable procedures in skills. Avoid duplicating the same rule across layers.
+
+Principle:
+
+> Root AGENTS.md owns policy; local AGENTS.md owns context-specific constraints; skills own procedures.
+
+This structure should remain extensible to additional areas such as `apps/web`, `apps/admin`, or worker applications.
 
 ## Required implementation order
 
@@ -88,9 +106,10 @@ Before editing code, every agent must:
 
 1. Read this file.
 2. Read the current issue completely, including acceptance criteria and non-goals.
-3. Read only the relevant product / MVP / architecture documents.
-4. Identify the affected domain(s), interaction(s), command(s), query(s), and boundaries.
-5. State assumptions explicitly in the PR when the issue leaves material ambiguity.
+3. Read the nearest applicable local `AGENTS.md` for the files being changed.
+4. Read only the relevant product / MVP / architecture documents and skills.
+5. Identify the affected domain(s), interaction(s), command(s), query(s), and boundaries.
+6. State assumptions explicitly in the PR when the issue leaves material ambiguity.
 
 During implementation:
 
