@@ -38,13 +38,25 @@ func TestNewID(t *testing.T) {
 func TestIdentityKeepsStableID(t *testing.T) {
 	t.Parallel()
 
-	id, err := NewID("user-123")
+	created, err := New(ID("user-123"))
 	if err != nil {
-		t.Fatalf("NewID() error = %v", err)
+		t.Fatalf("New() error = %v", err)
 	}
+	if created.ID() != ID("user-123") {
+		t.Fatalf("Identity.ID() = %q, want %q", created.ID(), ID("user-123"))
+	}
+}
 
-	created := New(id)
-	if created.ID() != id {
-		t.Fatalf("Identity.ID() = %q, want %q", created.ID(), id)
+func TestNewIdentityRejectsForgedInvalidID(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []ID{"", "   "} {
+		created, err := New(raw)
+		if !errors.Is(err, ErrInvalidID) {
+			t.Fatalf("New(%q) error = %v, want %v", raw, err, ErrInvalidID)
+		}
+		if created != (Identity{}) {
+			t.Fatalf("New(%q) = %#v, want zero Identity", raw, created)
+		}
 	}
 }
