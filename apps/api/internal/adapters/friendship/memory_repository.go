@@ -29,13 +29,34 @@ func (r *MemoryRepository) FindBetween(_ context.Context, first, second domainid
 	return found, ok, nil
 }
 
-// Save creates or replaces the single aggregate for its participant pair.
-func (r *MemoryRepository) Save(_ context.Context, friendship domainfriendship.Friendship) error {
+// CreateIfAbsent atomically creates the participant-pair aggregate when none exists.
+func (r *MemoryRepository) CreateIfAbsent(_ context.Context, friendship domainfriendship.Friendship) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.friendships[memoryKey(friendship.InviterID(), friendship.InviteeID())] = friendship
-	return nil
+	key := memoryKey(friendship.InviterID(), friendship.InviteeID())
+	if _, exists := r.friendships[key]; exists {
+		return false, nil
+	}
+	r.friendships[key] = friendship
+	return true, nil
+}
+
+// UpdateBetween atomically loads, mutates through domain behavior, and persists one aggregate.
+func (r *MemoryRepository) UpdateBetween(_ context.Context, first, second domainidentity.ID, update func(*domainfriendship.Friendship) error) (domainfriendship.Friendship, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	key := memoryKey(first, second)
+	friendship, exists := r.friendships[key]
+	if !exists {
+		return domainfriendship.Friendship{}, false, nil
+	}
+	if err := update(&friendship); err != nil {
+		return domainfriendship.Friendship{}, true, err
+	}
+	r.friendships[key] = friendship
+	return friendship, true, nil
 }
 
 func memoryKey(first, second domainidentity.ID) string {
