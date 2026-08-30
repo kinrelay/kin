@@ -2,6 +2,7 @@ package socialcontext
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	applicationsocialcontext "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
@@ -23,7 +24,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		provenance = append(provenance, activity.ID)
 		topic, ok := summarizeSignal(activity.Content)
 		if !ok {
-			return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
+			continue
 		}
 		if _, seen := seenTopics[topic]; seen {
 			continue
@@ -34,6 +35,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	if len(topics) == 0 {
 		return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
 	}
+	sort.Strings(topics)
 
 	return applicationsocialcontext.GeneratedContext{
 		Meaning:    "近期關注" + strings.Join(topics, "；"),
