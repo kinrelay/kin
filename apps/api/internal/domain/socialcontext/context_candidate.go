@@ -44,6 +44,12 @@ func NewContextCandidate(meaning string, provenance []string) (ContextCandidate,
 }
 
 func PromoteContextCandidate(candidate ContextCandidate, sources []SourceActivity) (SocialContext, error) {
+	validated, err := NewContextCandidate(candidate.meaning, candidate.provenance)
+	if err != nil {
+		return SocialContext{}, err
+	}
+	candidate = validated
+
 	authorized := make(map[string]string, len(sources))
 	for _, source := range sources {
 		id := strings.TrimSpace(source.ID)
@@ -53,10 +59,11 @@ func PromoteContextCandidate(candidate ContextCandidate, sources []SourceActivit
 	}
 
 	for _, sourceID := range candidate.provenance {
-		content, ok := authorized[sourceID]
-		if !ok {
+		if _, ok := authorized[sourceID]; !ok {
 			return SocialContext{}, ErrMissingContextProvenance
 		}
+	}
+	for _, content := range authorized {
 		if strings.EqualFold(candidate.meaning, content) {
 			return SocialContext{}, ErrSourceReplay
 		}
