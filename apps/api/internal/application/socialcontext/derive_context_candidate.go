@@ -42,7 +42,7 @@ type ContextGenerator interface {
 }
 
 type SocialContextRepository interface {
-	Save(ctx context.Context, socialContext domainsocialcontext.SocialContext) error
+	Save(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error
 }
 
 type DeriveContextCandidateCommand struct {
@@ -131,7 +131,7 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	if err != nil {
 		return DerivationOutcome{Status: DerivationRejected, Reason: err}, nil
 	}
-	if err := uc.repository.Save(ctx, socialContext); err != nil {
+	if err := uc.repository.Save(ctx, requesterID, socialContext); err != nil {
 		return DerivationOutcome{}, err
 	}
 
