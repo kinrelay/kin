@@ -46,8 +46,8 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 func summarizeSignal(content string) (string, bool) {
 	normalized := strings.TrimSpace(content)
 	if containsAny(normalized,
-		"不研究", "不再研究", "停止研究", "沒有研究",
-		"不準備", "沒有準備", "不訓練", "沒有訓練",
+		"不再", "沒有", "停止",
+		"不研究", "不深入研究", "不準備", "不訓練",
 	) {
 		return "", false
 	}
