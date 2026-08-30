@@ -29,11 +29,13 @@ func (f *fakeContextGenerator) Generate(_ context.Context, input ContextGenerati
 }
 
 type fakeSocialContextRepository struct {
-	saved []domainsocialcontext.SocialContext
+	owners []domainidentity.ID
+	saved  []domainsocialcontext.SocialContext
 }
 
-func (f *fakeSocialContextRepository) Save(_ context.Context, context domainsocialcontext.SocialContext) error {
-	f.saved = append(f.saved, context)
+func (f *fakeSocialContextRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
+	f.owners = append(f.owners, ownerID)
+	f.saved = append(f.saved, socialContext)
 	return nil
 }
 
@@ -62,8 +64,8 @@ func TestDeriveContextCandidateOnlySendsEligibleAuthorizedActivityToGenerator(t 
 	if len(generator.input.Activities) != 1 || generator.input.Activities[0].ID != "activity-eligible" {
 		t.Fatalf("generator activities = %#v, want only eligible activity", generator.input.Activities)
 	}
-	if outcome.Status != DerivationPromoted || len(repository.saved) != 1 {
-		t.Fatalf("outcome = %#v, saved = %d; want promoted and persisted", outcome, len(repository.saved))
+	if outcome.Status != DerivationPromoted || len(repository.saved) != 1 || len(repository.owners) != 1 || repository.owners[0] != ownerID {
+		t.Fatalf("outcome = %#v, owners = %#v, saved = %d; want promoted context persisted for requester", outcome, repository.owners, len(repository.saved))
 	}
 }
 
