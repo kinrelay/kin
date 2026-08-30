@@ -88,3 +88,45 @@ func TestMVP2DerivationFlowSuppressesLowSignalWithoutPersistingContext(t *testin
 		t.Fatalf("context count = %d, want 0", len(contexts))
 	}
 }
+
+func TestMVP2DerivationFlowSuppressesRetryWithoutPersistingDuplicateContext(t *testing.T) {
+	ctx := context.Background()
+	flow := NewMVP2DerivationFlow()
+	ownerID, _ := domainidentity.NewID("alice")
+	content, _ := domainactivity.NewContent("最近開始深入研究分散式系統設計與一致性取捨")
+	now := time.Date(2026, time.August, 30, 10, 30, 0, 0, time.UTC)
+	activity, err := domainactivity.NewManual("activity-retry", ownerID, content, now, now)
+	if err != nil {
+		t.Fatalf("NewManual(): %v", err)
+	}
+	if err := flow.Activities.Save(ctx, activity); err != nil {
+		t.Fatalf("Save activity: %v", err)
+	}
+
+	command := applicationsocialcontext.DeriveContextCandidateCommand{
+		RequesterID: "alice",
+		ActivityIDs: []string{"activity-retry"},
+	}
+	first, err := flow.Derive.Execute(ctx, command)
+	if err != nil {
+		t.Fatalf("first Derive.Execute() error = %v", err)
+	}
+	if first.Status != applicationsocialcontext.DerivationPromoted {
+		t.Fatalf("first derivation status = %q, want promoted", first.Status)
+	}
+	second, err := flow.Derive.Execute(ctx, command)
+	if err != nil {
+		t.Fatalf("second Derive.Execute() error = %v", err)
+	}
+	if second.Status != applicationsocialcontext.DerivationSuppressed {
+		t.Fatalf("second derivation status = %q, want suppressed duplicate", second.Status)
+	}
+
+	contexts, err := flow.List.Execute(ctx, applicationsocialcontext.ListMySocialContextsQuery{RequesterID: "alice"})
+	if err != nil {
+		t.Fatalf("List.Execute() error = %v", err)
+	}
+	if len(contexts) != 1 {
+		t.Fatalf("context count = %d, want exactly 1 after retry", len(contexts))
+	}
+}
