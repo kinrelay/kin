@@ -61,13 +61,21 @@ func summarizeSignal(content string) (string, bool) {
 			"開始研究一致性模型",
 			"持續研究一致性模型",
 		):
-			if hasLaterReversal(clauses[i:], "不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較") {
-				return "", false
+			if hasTopicReversal(
+				clauses[i:],
+				[]string{"分散式系統", "一致性模型"},
+				[]string{"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較"},
+			) {
+				continue
 			}
 			return "分散式系統的一致性模型、可靠性與工程取捨", true
 		case isAffirmativeMarathonParticipationClause(clause):
-			if hasLaterReversal(clauses[i:], "沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松") {
-				return "", false
+			if hasTopicReversal(
+				clauses[i:],
+				[]string{"馬拉松"},
+				[]string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "不參加", "不參賽"},
+			) {
+				continue
 			}
 			return "耐力運動與長距離訓練", true
 		}
@@ -76,6 +84,9 @@ func summarizeSignal(content string) (string, bool) {
 }
 
 func isAffirmativeMarathonParticipationClause(clause string) bool {
+	if strings.Contains(clause, "不參加") || strings.Contains(clause, "不參賽") {
+		return false
+	}
 	for _, prefix := range []string{
 		"最近開始準備",
 		"開始準備",
@@ -124,10 +135,16 @@ func splitSignalClauses(content string) []string {
 	return clauses
 }
 
-func hasLaterReversal(clauses []string, patterns ...string) bool {
+func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string) bool {
 	for _, clause := range clauses {
-		for _, pattern := range patterns {
-			if strings.Contains(clause, pattern) {
+		for _, pattern := range reversalPatterns {
+			index := strings.Index(clause, pattern)
+			if index < 0 {
+				continue
+			}
+
+			suffix := strings.TrimSpace(clause[index+len(pattern):])
+			if suffix == "" || hasAnySubstring(clause, topicMarkers...) {
 				return true
 			}
 		}
@@ -138,6 +155,15 @@ func hasLaterReversal(clauses []string, patterns ...string) bool {
 func hasAnyPrefix(content string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(content, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasAnySubstring(content string, values ...string) bool {
+	for _, value := range values {
+		if strings.Contains(content, value) {
 			return true
 		}
 	}
