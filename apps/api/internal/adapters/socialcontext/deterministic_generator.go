@@ -73,7 +73,7 @@ func summarizeSignal(content string) (string, bool) {
 			if hasTopicReversal(
 				clauses[i:],
 				[]string{"馬拉松"},
-				[]string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "不參加", "不參賽"},
+				[]string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"},
 			) {
 				continue
 			}
@@ -99,17 +99,15 @@ func isAffirmativeMarathonParticipationClause(clause string) bool {
 			continue
 		}
 		target := strings.TrimSpace(strings.TrimPrefix(clause, prefix))
-		if target == "馬拉松" {
-			return true
-		}
 		for _, participationTarget := range []string{
+			"馬拉松",
 			"第一次全程馬拉松訓練",
 			"全程馬拉松訓練",
 			"馬拉松訓練",
 			"馬拉松參賽",
 			"馬拉松比賽",
 		} {
-			if strings.HasPrefix(target, participationTarget) {
+			if target == participationTarget {
 				return true
 			}
 		}
@@ -144,7 +142,7 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 			}
 
 			suffix := strings.TrimSpace(clause[index+len(pattern):])
-			if suffix == "" || hasAnySubstring(clause, topicMarkers...) {
+			if suffix == "" || hasAnySubstring(suffix, topicMarkers...) {
 				return true
 			}
 		}
