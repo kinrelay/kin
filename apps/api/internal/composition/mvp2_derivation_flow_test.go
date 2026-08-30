@@ -2,6 +2,7 @@ package composition
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -128,5 +129,74 @@ func TestMVP2DerivationFlowSuppressesRetryWithoutPersistingDuplicateContext(t *t
 	}
 	if len(contexts) != 1 {
 		t.Fatalf("context count = %d, want exactly 1 after retry", len(contexts))
+	}
+}
+
+func TestMVP2DerivationFlowAtomicallySuppressesConcurrentDuplicateDerivations(t *testing.T) {
+	ctx := context.Background()
+	flow := NewMVP2DerivationFlow()
+	ownerID, _ := domainidentity.NewID("alice")
+	content, _ := domainactivity.NewContent("最近開始深入研究分散式系統設計與一致性取捨")
+	now := time.Date(2026, time.August, 30, 10, 30, 0, 0, time.UTC)
+	activity, err := domainactivity.NewManual("activity-concurrent", ownerID, content, now, now)
+	if err != nil {
+		t.Fatalf("NewManual(): %v", err)
+	}
+	if err := flow.Activities.Save(ctx, activity); err != nil {
+		t.Fatalf("Save activity: %v", err)
+	}
+
+	command := applicationsocialcontext.DeriveContextCandidateCommand{
+		RequesterID: "alice",
+		ActivityIDs: []string{"activity-concurrent"},
+	}
+	const workers = 16
+	outcomes := make(chan applicationsocialcontext.DerivationOutcome, workers)
+	errs := make(chan error, workers)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			outcome, err := flow.Derive.Execute(ctx, command)
+			if err != nil {
+				errs <- err
+				return
+			}
+			outcomes <- outcome
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(outcomes)
+	close(errs)
+
+	for err := range errs {
+		t.Fatalf("concurrent Derive.Execute() error = %v", err)
+	}
+	promoted := 0
+	suppressed := 0
+	for outcome := range outcomes {
+		switch outcome.Status {
+		case applicationsocialcontext.DerivationPromoted:
+			promoted++
+		case applicationsocialcontext.DerivationSuppressed:
+			suppressed++
+		default:
+			t.Fatalf("unexpected concurrent derivation status = %q, reason=%v", outcome.Status, outcome.Reason)
+		}
+	}
+	if promoted != 1 || suppressed != workers-1 {
+		t.Fatalf("promoted=%d suppressed=%d, want 1 promoted and %d suppressed", promoted, suppressed, workers-1)
+	}
+
+	contexts, err := flow.List.Execute(ctx, applicationsocialcontext.ListMySocialContextsQuery{RequesterID: "alice"})
+	if err != nil {
+		t.Fatalf("List.Execute() error = %v", err)
+	}
+	if len(contexts) != 1 {
+		t.Fatalf("context count = %d, want exactly 1 after concurrent derivation", len(contexts))
 	}
 }
