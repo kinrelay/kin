@@ -54,3 +54,24 @@ func TestDeterministicGeneratorDistinguishesDifferentSignals(t *testing.T) {
 		t.Fatalf("different signals produced identical meaning %q", first.Meaning)
 	}
 }
+
+func TestDeterministicGeneratorDeclinesUnmatchedSignalInsteadOfReplayingRawContent(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "完成第一次全程馬拉松比賽"
+
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-unmatched", Content: raw},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if strings.Contains(got.Meaning, raw) {
+		t.Fatalf("Generate() meaning = %q, must not contain unmatched raw Activity content %q", got.Meaning, raw)
+	}
+	if got.Meaning != "" {
+		t.Fatalf("Generate() meaning = %q, want blank meaning so candidate validation rejects an unsafe unmatched signal", got.Meaning)
+	}
+	if want := []string{"activity-unmatched"}; !reflect.DeepEqual(got.Provenance, want) {
+		t.Fatalf("Generate() provenance = %#v, want %#v", got.Provenance, want)
+	}
+}
