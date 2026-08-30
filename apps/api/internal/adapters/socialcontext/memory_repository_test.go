@@ -2,6 +2,7 @@ package socialcontext
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
@@ -67,5 +68,50 @@ func TestMemoryRepositoryEquivalentContextIsOwnerScopedAndMeaningSpecific(t *tes
 	got, err = repository.ExistsEquivalent(ctx, ownerID, differentContext)
 	if err != nil || got {
 		t.Fatalf("ExistsEquivalent(different meaning) = %v, %v; want false, nil", got, err)
+	}
+}
+
+func TestMemoryRepositorySaveIfAbsentIsAtomicAcrossConcurrentCalls(t *testing.T) {
+	ctx := context.Background()
+	ownerID, _ := domainidentity.NewID("owner-1")
+	candidate, _ := domainsocialcontext.NewContextCandidate("近期關注分散式系統的一致性模型、可靠性與工程取捨", []string{"activity-1"})
+	socialContext, err := domainsocialcontext.PromoteContextCandidate(candidate, []domainsocialcontext.SourceActivity{{ID: "activity-1", Content: "最近開始深入研究分散式系統設計"}})
+	if err != nil {
+		t.Fatalf("PromoteContextCandidate() error = %v", err)
+	}
+
+	repository := NewMemoryRepository()
+	const workers = 16
+	inserted := make(chan bool, workers)
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			ok, err := repository.SaveIfAbsent(ctx, ownerID, socialContext)
+			if err != nil {
+				t.Errorf("SaveIfAbsent() error = %v", err)
+				return
+			}
+			inserted <- ok
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(inserted)
+
+	insertCount := 0
+	for ok := range inserted {
+		if ok {
+			insertCount++
+		}
+	}
+	if insertCount != 1 {
+		t.Fatalf("insert count = %d, want exactly 1", insertCount)
+	}
+	if got := len(repository.All()); got != 1 {
+		t.Fatalf("stored context count = %d, want exactly 1", got)
 	}
 }
