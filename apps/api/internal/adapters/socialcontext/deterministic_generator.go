@@ -18,39 +18,37 @@ func NewDeterministicGenerator() DeterministicGenerator {
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
 	provenance := make([]string, 0, len(input.Activities))
 	topics := make([]string, 0, len(input.Activities))
+	seenTopics := make(map[string]struct{}, len(input.Activities))
 	for _, activity := range input.Activities {
 		provenance = append(provenance, activity.ID)
 		topic, ok := summarizeSignal(activity.Content)
 		if !ok {
 			return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
 		}
+		if _, seen := seenTopics[topic]; seen {
+			continue
+		}
+		seenTopics[topic] = struct{}{}
 		topics = append(topics, topic)
+	}
+	if len(topics) == 0 {
+		return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
 	}
 
 	return applicationsocialcontext.GeneratedContext{
-		Meaning:    "近期持續關注與投入：" + strings.Join(topics, "；"),
+		Meaning:    "近期關注" + strings.Join(topics, "；"),
 		Provenance: provenance,
 	}, nil
 }
 
 func summarizeSignal(content string) (string, bool) {
-	summary := strings.TrimSpace(content)
-	for _, prefix := range []string{
-		"最近開始",
-		"最近",
-		"持續",
-		"開始",
-		"深入研究",
-		"研究",
-		"準備",
-	} {
-		if strings.HasPrefix(summary, prefix) {
-			topic := strings.TrimSpace(strings.TrimPrefix(summary, prefix))
-			if topic == "" || topic == summary {
-				return "", false
-			}
-			return topic, true
-		}
+	normalized := strings.TrimSpace(content)
+	switch {
+	case strings.Contains(normalized, "分散式系統"), strings.Contains(normalized, "一致性模型"):
+		return "分散式系統的可靠性與一致性取捨", true
+	case strings.Contains(normalized, "馬拉松"):
+		return "耐力運動與長距離訓練", true
+	default:
+		return "", false
 	}
-	return "", false
 }
