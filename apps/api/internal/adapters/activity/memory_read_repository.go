@@ -43,21 +43,19 @@ func (r *MemoryReadRepository) ListByOwner(_ context.Context, ownerID domainiden
 
 // ListOwnerPrivateNormalized exposes only explicitly requested, owner-private normalized Activities to context derivation.
 func (r *MemoryReadRepository) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID, activityIDs []string) ([]applicationsocialcontext.ActivityForContext, error) {
-	requested := make(map[string]struct{}, len(activityIDs))
-	for _, id := range activityIDs {
-		requested[id] = struct{}{}
-	}
-
 	r.source.mu.RLock()
 	defer r.source.mu.RUnlock()
 
 	result := make([]applicationsocialcontext.ActivityForContext, 0, len(activityIDs))
-	for _, value := range r.source.activities {
-		if value.OwnerID() != ownerID || !value.IsPrivate() {
+	seen := make(map[string]struct{}, len(activityIDs))
+	for _, id := range activityIDs {
+		if _, duplicate := seen[id]; duplicate {
 			continue
 		}
-		id := string(value.ID())
-		if _, ok := requested[id]; !ok {
+		seen[id] = struct{}{}
+
+		value, ok := r.source.activities[id]
+		if !ok || value.OwnerID() != ownerID || !value.IsPrivate() {
 			continue
 		}
 		result = append(result, applicationsocialcontext.ActivityForContext{
