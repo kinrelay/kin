@@ -21,11 +21,11 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	topics := make([]string, 0, len(input.Activities))
 	seenTopics := make(map[string]struct{}, len(input.Activities))
 	for _, activity := range input.Activities {
-		provenance = append(provenance, activity.ID)
 		topic, ok := summarizeSignal(activity.Content)
 		if !ok {
 			continue
 		}
+		provenance = append(provenance, activity.ID)
 		if _, seen := seenTopics[topic]; seen {
 			continue
 		}
@@ -33,7 +33,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		topics = append(topics, topic)
 	}
 	if len(topics) == 0 {
-		return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
+		return applicationsocialcontext.GeneratedContext{}, nil
 	}
 	sort.Strings(topics)
 
@@ -45,12 +45,28 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 
 func summarizeSignal(content string) (string, bool) {
 	normalized := strings.TrimSpace(content)
+	if containsAny(normalized,
+		"不研究", "不再研究", "停止研究", "沒有研究",
+		"不準備", "沒有準備", "不訓練", "沒有訓練",
+	) {
+		return "", false
+	}
+
 	switch {
-	case strings.Contains(normalized, "分散式系統"), strings.Contains(normalized, "一致性模型"):
+	case containsAny(normalized, "深入研究分散式系統", "研究分散式系統", "比較不同一致性模型", "研究一致性模型"):
 		return "分散式系統的一致性模型、可靠性與工程取捨", true
-	case strings.Contains(normalized, "馬拉松") && (strings.Contains(normalized, "準備") || strings.Contains(normalized, "訓練")):
+	case strings.Contains(normalized, "馬拉松") && containsAny(normalized, "準備", "訓練"):
 		return "耐力運動與長距離訓練", true
 	default:
 		return "", false
 	}
+}
+
+func containsAny(content string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		if strings.Contains(content, pattern) {
+			return true
+		}
+	}
+	return false
 }
