@@ -13,6 +13,7 @@ import (
 var (
 	ErrContextActivityOwnerMismatch = errors.New("context activity owner mismatch")
 	ErrContextActivityNotRequested  = errors.New("context activity was not requested")
+	ErrContextRetirementUnsupported = errors.New("social context repository does not support provenance retirement")
 )
 
 type ActivityForContext struct {
@@ -36,8 +37,9 @@ type ContextGenerationInput struct {
 }
 
 type GeneratedContext struct {
-	Meaning    string
-	Provenance []string
+	Meaning           string
+	Provenance        []string
+	RetiredProvenance []string
 }
 
 type ContextGenerator interface {
@@ -46,6 +48,13 @@ type ContextGenerator interface {
 
 type SocialContextRepository interface {
 	SaveIfAbsent(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error)
+}
+
+// SocialContextRetirementRepository is the write-side capability required only
+// when current-state reconciliation determines that previously promoted context
+// provenance has been superseded by a later reversal.
+type SocialContextRetirementRepository interface {
+	RetireByProvenance(ctx context.Context, ownerID domainidentity.ID, activityIDs []string) (int, error)
 }
 
 type DeriveContextCandidateCommand struct {
@@ -139,6 +148,19 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	if err != nil {
 		return DerivationOutcome{}, err
 	}
+	if len(generated.RetiredProvenance) > 0 {
+		retirementRepository, ok := uc.repository.(SocialContextRetirementRepository)
+		if !ok {
+			return DerivationOutcome{}, ErrContextRetirementUnsupported
+		}
+		if _, err := retirementRepository.RetireByProvenance(ctx, requesterID, generated.RetiredProvenance); err != nil {
+			return DerivationOutcome{}, err
+		}
+	}
+	if generated.Meaning == "" {
+		return DerivationOutcome{Status: DerivationSuppressed}, nil
+	}
+
 	candidate, err := domainsocialcontext.NewContextCandidate(generated.Meaning, generated.Provenance)
 	if err != nil {
 		return DerivationOutcome{Status: DerivationRejected, Reason: err}, nil
