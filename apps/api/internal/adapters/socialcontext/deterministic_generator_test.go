@@ -140,6 +140,7 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 	for _, raw := range []string{
 		"我不研究分散式系統",
 		"最近已經不再研究分散式系統了",
+		"我不再深入研究分散式系統",
 		"完成第一次全程馬拉松比賽，沒有準備",
 	} {
 		t.Run(raw, func(t *testing.T) {
