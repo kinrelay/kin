@@ -38,15 +38,11 @@ func TestDeterministicGeneratorProducesDerivedMeaningAndAuthorizedProvenance(t *
 
 func TestDeterministicGeneratorDistinguishesDifferentSignals(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	first, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
-	}})
+	first, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"}}})
 	if err != nil {
 		t.Fatalf("Generate(database) error = %v", err)
 	}
-	second, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
-	}})
+	second, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"}}})
 	if err != nil {
 		t.Fatalf("Generate(marathon) error = %v", err)
 	}
@@ -58,10 +54,7 @@ func TestDeterministicGeneratorDistinguishesDifferentSignals(t *testing.T) {
 func TestDeterministicGeneratorDeclinesUnmatchedSignalInsteadOfReplayingRawContent(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	raw := "完成第一次全程馬拉松比賽"
-
-	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-		{ID: "activity-unmatched", Content: raw},
-	}})
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-unmatched", Content: raw}}})
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
@@ -79,10 +72,7 @@ func TestDeterministicGeneratorDeclinesUnmatchedSignalInsteadOfReplayingRawConte
 func TestDeterministicGeneratorAbstractsSingleSignalBeyondLightParaphrase(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	raw := "最近開始深入研究分散式系統設計"
-
-	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-		{ID: "activity-db", Content: raw},
-	}})
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
@@ -121,7 +111,6 @@ func TestDeterministicGeneratorCanonicalizesTopicOrder(t *testing.T) {
 		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
 		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
 	}}
-
 	first, err := generator.Generate(context.Background(), firstInput)
 	if err != nil {
 		t.Fatalf("Generate(first) error = %v", err)
@@ -145,9 +134,7 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 		"完成第一次全程馬拉松比賽，沒有準備",
 	} {
 		t.Run(raw, func(t *testing.T) {
-			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-				{ID: "activity-negated", Content: raw},
-			}})
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-negated", Content: raw}}})
 			if err != nil {
 				t.Fatalf("Generate() error = %v", err)
 			}
@@ -163,14 +150,9 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 
 func TestDeterministicGeneratorRejectsMarathonPreparationWithoutParticipationIntent(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	for _, raw := range []string{
-		"開始準備放棄馬拉松訓練",
-		"開始準備馬拉松賽事的志工物資",
-	} {
+	for _, raw := range []string{"開始準備放棄馬拉松訓練", "開始準備馬拉松賽事的志工物資"} {
 		t.Run(raw, func(t *testing.T) {
-			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-				{ID: "activity-run", Content: raw},
-			}})
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: raw}}})
 			if err != nil {
 				t.Fatalf("Generate() error = %v", err)
 			}
@@ -183,14 +165,9 @@ func TestDeterministicGeneratorRejectsMarathonPreparationWithoutParticipationInt
 
 func TestDeterministicGeneratorScopesIntentToIndividualClauses(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	for _, raw := range []string{
-		"最近開始準備第一次全程馬拉松訓練，目前沒有受傷",
-		"停止熬夜，開始準備馬拉松",
-	} {
+	for _, raw := range []string{"最近開始準備第一次全程馬拉松訓練，目前沒有受傷", "停止熬夜，開始準備馬拉松"} {
 		t.Run(raw, func(t *testing.T) {
-			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-				{ID: "activity-run", Content: raw},
-			}})
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: raw}}})
 			if err != nil {
 				t.Fatalf("Generate() error = %v", err)
 			}
@@ -210,9 +187,7 @@ func TestDeterministicGeneratorRejectsLaterReversalOfRecognizedIntent(t *testing
 		"最近開始準備馬拉松但後來沒有準備",
 	} {
 		t.Run(raw, func(t *testing.T) {
-			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-				{ID: "activity-reversed", Content: raw},
-			}})
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-reversed", Content: raw}}})
 			if err != nil {
 				t.Fatalf("Generate() error = %v", err)
 			}
@@ -220,5 +195,47 @@ func TestDeterministicGeneratorRejectsLaterReversalOfRecognizedIntent(t *testing
 				t.Fatalf("Generate() = %#v for reversed intent %q, want blank meaning and provenance", got, raw)
 			}
 		})
+	}
+}
+
+func TestDeterministicGeneratorContinuesAfterReversedClauseToIndependentSafeTopic(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始研究分散式系統，但後來不再研究，最近開始準備馬拉松"
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-mixed", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "耐力運動") || strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want only the later independent safe marathon topic", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorRejectsExplicitMarathonNonParticipationSuffix(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, raw := range []string{
+		"最近開始準備馬拉松比賽但後來不參加",
+		"最近開始準備馬拉松比賽，但後來不參賽",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: raw}}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning != "" || len(got.Provenance) != 0 {
+				t.Fatalf("Generate() = %#v for explicit non-participation %q, want blank meaning and provenance", got, raw)
+			}
+		})
+	}
+}
+
+func TestDeterministicGeneratorDoesNotBindUnrelatedReversalToRecognizedTopic(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始研究分散式系統，後來停止研究英文"
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want distributed-systems topic preserved when later reversal targets English", got.Meaning)
 	}
 }
