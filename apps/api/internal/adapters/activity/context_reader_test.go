@@ -2,6 +2,7 @@ package activity
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -37,7 +38,8 @@ func TestMemoryReadRepositoryListsOnlyRequestedPrivateNormalizedActivitiesForCon
 	}
 
 	for _, value := range []domainactivity.Activity{
-		makeActivity("alice-requested", "alice", "最近開始深入研究分散式系統設計"),
+		makeActivity("alice-first", "alice", "最近開始深入研究分散式系統設計"),
+		makeActivity("alice-second", "alice", "持續比較不同一致性模型的工程取捨"),
 		makeActivity("alice-unrequested", "alice", "另一筆不在本次 derivation request 的活動"),
 		makeActivity("bob-requested", "bob", "另一位使用者的 private activity"),
 	} {
@@ -46,16 +48,15 @@ func TestMemoryReadRepositoryListsOnlyRequestedPrivateNormalizedActivitiesForCon
 		}
 	}
 
-	got, err := readRepository.ListOwnerPrivateNormalized(ctx, aliceID, []string{"alice-requested", "bob-requested"})
+	got, err := readRepository.ListOwnerPrivateNormalized(ctx, aliceID, []string{"alice-second", "alice-first", "alice-second", "bob-requested"})
 	if err != nil {
 		t.Fatalf("ListOwnerPrivateNormalized() error = %v", err)
 	}
-	want := []applicationsocialcontext.ActivityForContext{{
-		ID:      "alice-requested",
-		OwnerID: aliceID,
-		Content: "最近開始深入研究分散式系統設計",
-	}}
-	if len(got) != len(want) || got[0] != want[0] {
+	want := []applicationsocialcontext.ActivityForContext{
+		{ID: "alice-second", OwnerID: aliceID, Content: "持續比較不同一致性模型的工程取捨"},
+		{ID: "alice-first", OwnerID: aliceID, Content: "最近開始深入研究分散式系統設計"},
+	}
+	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ListOwnerPrivateNormalized() = %#v, want %#v", got, want)
 	}
 }
