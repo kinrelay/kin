@@ -14,10 +14,10 @@ const (
 )
 
 var (
-	distributedSystemsMarkers = []string{"分散式系統", "一致性模型"}
+	distributedSystemsMarkers   = []string{"分散式系統", "一致性模型"}
 	distributedSystemsReversals = []string{"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較"}
-	marathonMarkers = []string{"馬拉松"}
-	marathonReversals = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
+	marathonMarkers              = []string{"馬拉松"}
+	marathonReversals            = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
 )
 
 // DeterministicGenerator is the provider-free MVP adapter used to make the derivation path executable and testable.
@@ -36,15 +36,21 @@ func NewDeterministicGenerator() DeterministicGenerator {
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
 	recognized := make([]recognizedSignal, 0, len(input.Activities))
 	for _, activity := range input.Activities {
+		// Input order is chronological (oldest to newest). A reversal removes only
+		// previously recognized state, allowing a genuinely later affirmative signal
+		// to establish the topic again.
 		for topic := range reversedTopics(activity.Content) {
 			recognized = removeRecognizedTopic(recognized, topic)
 		}
 
-		topic, ok := summarizeSignal(activity.Content)
-		if !ok {
-			continue
+		seenInActivity := make(map[string]struct{}, 2)
+		for _, topic := range summarizeSignals(activity.Content) {
+			if _, seen := seenInActivity[topic]; seen {
+				continue
+			}
+			seenInActivity[topic] = struct{}{}
+			recognized = append(recognized, recognizedSignal{activityID: activity.ID, topic: topic})
 		}
-		recognized = append(recognized, recognizedSignal{activityID: activity.ID, topic: topic})
 	}
 	if len(recognized) == 0 {
 		return applicationsocialcontext.GeneratedContext{}, nil
@@ -52,9 +58,13 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 
 	provenance := make([]string, 0, len(recognized))
 	topics := make([]string, 0, len(recognized))
+	seenActivityIDs := make(map[string]struct{}, len(recognized))
 	seenTopics := make(map[string]struct{}, len(recognized))
 	for _, signal := range recognized {
-		provenance = append(provenance, signal.activityID)
+		if _, seen := seenActivityIDs[signal.activityID]; !seen {
+			seenActivityIDs[signal.activityID] = struct{}{}
+			provenance = append(provenance, signal.activityID)
+		}
 		if _, seen := seenTopics[signal.topic]; seen {
 			continue
 		}
@@ -70,7 +80,16 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 }
 
 func summarizeSignal(content string) (string, bool) {
+	topics := summarizeSignals(content)
+	if len(topics) == 0 {
+		return "", false
+	}
+	return topics[0], true
+}
+
+func summarizeSignals(content string) []string {
 	clauses := splitSignalClauses(content)
+	topics := make([]string, 0, 2)
 	for i, clause := range clauses {
 		switch {
 		case hasAnyPrefix(clause,
@@ -90,15 +109,15 @@ func summarizeSignal(content string) (string, bool) {
 			if hasTopicReversal(clauses[i:], distributedSystemsMarkers, distributedSystemsReversals) {
 				continue
 			}
-			return distributedSystemsTopic, true
+			topics = append(topics, distributedSystemsTopic)
 		case isAffirmativeMarathonParticipationClause(clause):
 			if hasTopicReversal(clauses[i:], marathonMarkers, marathonReversals) {
 				continue
 			}
-			return marathonTopic, true
+			topics = append(topics, marathonTopic)
 		}
 	}
-	return "", false
+	return topics
 }
 
 func reversedTopics(content string) map[string]struct{} {
@@ -197,10 +216,14 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 
 func reversalObject(suffix string) string {
 	object := suffix
-	for _, boundary := range []string{"並", "且", "而", "但", "同時"} {
-		if index := strings.Index(object, boundary); index >= 0 {
-			object = object[:index]
+	boundaryIndex := -1
+	for _, boundary := range []string{"以及", "並且", "同時", "並", "且", "而", "但"} {
+		if index := strings.Index(object, boundary); index >= 0 && (boundaryIndex < 0 || index < boundaryIndex) {
+			boundaryIndex = index
 		}
+	}
+	if boundaryIndex >= 0 {
+		object = object[:boundaryIndex]
 	}
 	return strings.TrimSpace(object)
 }
