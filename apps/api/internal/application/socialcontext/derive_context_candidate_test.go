@@ -67,6 +67,26 @@ func TestDeriveContextCandidateOnlySendsEligibleAuthorizedActivityToGenerator(t 
 	}
 }
 
+func TestDeriveContextCandidateRejectsUnrequestedActivityReturnedByReader(t *testing.T) {
+	ownerID, _ := domainidentity.NewID("owner-1")
+	generator := &fakeContextGenerator{}
+	repository := &fakeSocialContextRepository{}
+	uc := NewDeriveContextCandidate(fakeContextActivityReader{activities: []ActivityForContext{
+		{ID: "activity-unrequested", OwnerID: ownerID, Content: "最近開始深入研究分散式系統設計"},
+	}}, generator, repository)
+
+	_, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{
+		RequesterID: "owner-1",
+		ActivityIDs: []string{"activity-requested"},
+	})
+	if err != ErrContextActivityNotRequested {
+		t.Fatalf("Execute() error = %v, want %v", err, ErrContextActivityNotRequested)
+	}
+	if generator.calls != 0 || len(repository.saved) != 0 {
+		t.Fatalf("generator calls = %d, saved = %d; unrequested activity must not proceed", generator.calls, len(repository.saved))
+	}
+}
+
 func TestDeriveContextCandidateSuppressesWhenNoActivityIsEligible(t *testing.T) {
 	ownerID, _ := domainidentity.NewID("owner-1")
 	generator := &fakeContextGenerator{}
