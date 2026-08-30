@@ -71,8 +71,8 @@ func TestDeterministicGeneratorDeclinesUnmatchedSignalInsteadOfReplayingRawConte
 	if got.Meaning != "" {
 		t.Fatalf("Generate() meaning = %q, want blank meaning so candidate validation rejects an unsafe unmatched signal", got.Meaning)
 	}
-	if want := []string{"activity-unmatched"}; !reflect.DeepEqual(got.Provenance, want) {
-		t.Fatalf("Generate() provenance = %#v, want %#v", got.Provenance, want)
+	if want := []string(nil); !reflect.DeepEqual(got.Provenance, want) {
+		t.Fatalf("Generate() provenance = %#v, want no provenance for unsupported signal", got.Provenance)
 	}
 }
 
@@ -106,6 +106,9 @@ func TestDeterministicGeneratorKeepsRecognizedTopicsWhenAnotherSignalIsUnsupport
 	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
 		t.Fatalf("Generate() meaning = %q, want recognized topic preserved despite unsupported signal", got.Meaning)
 	}
+	if want := []string{"activity-db"}; !reflect.DeepEqual(got.Provenance, want) {
+		t.Fatalf("Generate() provenance = %#v, want only activities that contributed to meaning %#v", got.Provenance, want)
+	}
 }
 
 func TestDeterministicGeneratorCanonicalizesTopicOrder(t *testing.T) {
@@ -136,6 +139,7 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 	generator := NewDeterministicGenerator()
 	for _, raw := range []string{
 		"我不研究分散式系統",
+		"最近已經不再研究分散式系統了",
 		"完成第一次全程馬拉松比賽，沒有準備",
 	} {
 		t.Run(raw, func(t *testing.T) {
@@ -147,6 +151,9 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 			}
 			if got.Meaning != "" {
 				t.Fatalf("Generate() meaning = %q for negated/contrastive signal %q, want blank meaning", got.Meaning, raw)
+			}
+			if len(got.Provenance) != 0 {
+				t.Fatalf("Generate() provenance = %#v for negated/contrastive signal %q, want none", got.Provenance, raw)
 			}
 		})
 	}
