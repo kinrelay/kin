@@ -75,3 +75,21 @@ func TestDeterministicGeneratorDeclinesUnmatchedSignalInsteadOfReplayingRawConte
 		t.Fatalf("Generate() provenance = %#v, want %#v", got.Provenance, want)
 	}
 }
+
+func TestDeterministicGeneratorAbstractsSingleSignalBeyondLightParaphrase(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始深入研究分散式系統設計"
+
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-db", Content: raw},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning != "近期關注分散式系統的可靠性與一致性取捨" {
+		t.Fatalf("Generate() meaning = %q, want higher-level social meaning rather than a light one-to-one paraphrase", got.Meaning)
+	}
+	if strings.Contains(got.Meaning, "深入研究分散式系統設計") {
+		t.Fatalf("Generate() meaning = %q, must not retain the source action phrase", got.Meaning)
+	}
+}
