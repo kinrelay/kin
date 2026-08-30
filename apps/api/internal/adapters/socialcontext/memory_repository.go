@@ -2,30 +2,49 @@ package socialcontext
 
 import (
 	"context"
+	"fmt"
 	"sync"
+	"time"
 
+	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 )
 
+type storedSocialContext struct {
+	id         string
+	ownerID    domainidentity.ID
+	context    domainsocialcontext.SocialContext
+	promotedAt time.Time
+}
+
 // MemoryRepository is the MVP in-memory SocialContext persistence adapter used for application composition/tests.
 type MemoryRepository struct {
-	mu       sync.RWMutex
-	contexts []domainsocialcontext.SocialContext
+	mu      sync.RWMutex
+	entries []storedSocialContext
 }
 
 func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{}
 }
 
-func (r *MemoryRepository) Save(_ context.Context, socialContext domainsocialcontext.SocialContext) error {
+func (r *MemoryRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.contexts = append(r.contexts, socialContext)
+	r.entries = append(r.entries, storedSocialContext{
+		id:         fmt.Sprintf("social-context-%d", len(r.entries)+1),
+		ownerID:    ownerID,
+		context:    socialContext,
+		promotedAt: time.Now().UTC(),
+	})
 	return nil
 }
 
 func (r *MemoryRepository) All() []domainsocialcontext.SocialContext {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return append([]domainsocialcontext.SocialContext(nil), r.contexts...)
+	result := make([]domainsocialcontext.SocialContext, 0, len(r.entries))
+	for _, entry := range r.entries {
+		result = append(result, entry.context)
+	}
+	return result
 }
