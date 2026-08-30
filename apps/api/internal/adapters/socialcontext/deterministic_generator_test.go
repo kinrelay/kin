@@ -38,13 +38,13 @@ func TestDeterministicGeneratorProducesDerivedMeaningAndAuthorizedProvenance(t *
 
 func TestDeterministicGeneratorDistinguishesDifferentSignals(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	first, err := generator.Generate(context.Background(), applicationsocialcontext.ContextGenerationInput{Activities: []applicationssocialcontext.ContextGenerationActivity{
+	first, err := generator.Generate(context.Background(), applicationsocialcontext.ContextGenerationInput{Activities: []applicationsocialcontext.ContextGenerationActivity{
 		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
 	}})
 	if err != nil {
 		t.Fatalf("Generate(database) error = %v", err)
 	}
-	second, err := generator.Generate(context.Background(), applicationsocialcontext.ContextGenerationInput{Activities: []applicationsocialcontext.ContextGenerationActivity{
+	second, err := generator.Generate(context.Background(), applicationssocialcontext.ContextGenerationInput{Activities: []applicationssocialcontext.ContextGenerationActivity{
 		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
 	}})
 	if err != nil {
