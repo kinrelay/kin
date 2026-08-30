@@ -3,6 +3,7 @@ package socialcontext
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
@@ -10,15 +11,17 @@ import (
 )
 
 type significanceActivityReaderFake struct {
-	items      []ActivityForSignificance
-	err        error
-	calls      int
-	ownerAsked domainidentity.ID
+	items        []ActivityForSignificance
+	err          error
+	calls        int
+	ownerAsked   domainidentity.ID
+	activityIDs  []string
 }
 
-func (f *significanceActivityReaderFake) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID) ([]ActivityForSignificance, error) {
+func (f *significanceActivityReaderFake) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID, activityIDs []string) ([]ActivityForSignificance, error) {
 	f.calls++
 	f.ownerAsked = ownerID
+	f.activityIDs = append([]string(nil), activityIDs...)
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -34,7 +37,7 @@ func significanceOwner(t *testing.T, value string) domainidentity.ID {
 	return id
 }
 
-func TestEvaluateActivitySignificanceReadsOnlyRequesterPrivateNormalizedActivities(t *testing.T) {
+func TestEvaluateActivitySignificanceReadsOnlyRequestedBatchOfRequesterPrivateNormalizedActivities(t *testing.T) {
 	alice := significanceOwner(t, "alice")
 	reader := &significanceActivityReaderFake{items: []ActivityForSignificance{
 		{ID: "activity-1", OwnerID: alice, Content: "最近持續研究 distributed systems 的 consistency trade-offs"},
@@ -42,13 +45,17 @@ func TestEvaluateActivitySignificanceReadsOnlyRequesterPrivateNormalizedActiviti
 		{ID: "activity-3", OwnerID: alice, Content: " 最近持續研究 distributed systems 的 consistency trade-offs "},
 	}}
 	useCase := NewEvaluateActivitySignificance(reader)
+	batch := []string{"activity-1", "activity-2", "activity-3"}
 
-	decisions, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: " alice "})
+	decisions, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: " alice ", ActivityIDs: batch})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
 	if reader.calls != 1 || reader.ownerAsked != alice {
 		t.Fatalf("reader calls/owner = %d/%q, want 1/%q", reader.calls, reader.ownerAsked, alice)
+	}
+	if !reflect.DeepEqual(reader.activityIDs, batch) {
+		t.Fatalf("reader activity ids = %#v, want %#v", reader.activityIDs, batch)
 	}
 	if len(decisions) != 3 {
 		t.Fatalf("decision count = %d, want 3", len(decisions))
@@ -68,7 +75,7 @@ func TestEvaluateActivitySignificanceRejectsInvalidRequesterBeforeRead(t *testin
 	reader := &significanceActivityReaderFake{}
 	useCase := NewEvaluateActivitySignificance(reader)
 
-	_, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: "  "})
+	_, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: "  ", ActivityIDs: []string{"activity-1"}})
 	if !errors.Is(err, domainidentity.ErrInvalidID) {
 		t.Fatalf("Execute() error = %v, want %v", err, domainidentity.ErrInvalidID)
 	}
@@ -85,7 +92,7 @@ func TestEvaluateActivitySignificanceRejectsReaderContractOwnerLeak(t *testing.T
 	}}
 	useCase := NewEvaluateActivitySignificance(reader)
 
-	decisions, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: string(alice)})
+	decisions, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: string(alice), ActivityIDs: []string{"activity-bob"}})
 	if !errors.Is(err, ErrActivityOwnerMismatch) {
 		t.Fatalf("Execute() error = %v, want %v", err, ErrActivityOwnerMismatch)
 	}
@@ -99,19 +106,22 @@ func TestEvaluateActivitySignificancePropagatesActivityReadFailure(t *testing.T)
 	reader := &significanceActivityReaderFake{err: readErr}
 	useCase := NewEvaluateActivitySignificance(reader)
 
-	_, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: "alice"})
+	_, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: "alice", ActivityIDs: []string{"activity-1"}})
 	if !errors.Is(err, readErr) {
 		t.Fatalf("Execute() error = %v, want %v", err, readErr)
 	}
 }
 
-func TestEvaluateActivitySignificanceReturnsExplicitEmptyDecisionSet(t *testing.T) {
+func TestEvaluateActivitySignificanceReturnsExplicitEmptyDecisionSetForEmptyBatch(t *testing.T) {
 	reader := &significanceActivityReaderFake{}
 	useCase := NewEvaluateActivitySignificance(reader)
 
 	decisions, err := useCase.Execute(context.Background(), EvaluateActivitySignificanceQuery{RequesterID: "alice"})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
+	}
+	if reader.calls != 0 {
+		t.Fatalf("reader calls = %d, want 0 for empty batch", reader.calls)
 	}
 	if decisions == nil || len(decisions) != 0 {
 		t.Fatalf("decisions = %#v, want explicit empty collection", decisions)
