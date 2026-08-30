@@ -61,25 +61,49 @@ func summarizeSignal(content string) (string, bool) {
 			"開始研究一致性模型",
 			"持續研究一致性模型",
 		):
-			if hasLaterReversal(clauses[i+1:], "不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較") {
+			if hasLaterReversal(clauses[i:], "不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較") {
 				return "", false
 			}
 			return "分散式系統的一致性模型、可靠性與工程取捨", true
-		case strings.Contains(clause, "馬拉松") && hasAnyPrefix(clause,
-			"最近開始準備",
-			"開始準備",
-			"持續準備",
-			"最近開始訓練",
-			"開始訓練",
-			"持續訓練",
-		):
-			if hasLaterReversal(clauses[i+1:], "沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練") {
+		case isAffirmativeMarathonParticipationClause(clause):
+			if hasLaterReversal(clauses[i:], "沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松") {
 				return "", false
 			}
 			return "耐力運動與長距離訓練", true
 		}
 	}
 	return "", false
+}
+
+func isAffirmativeMarathonParticipationClause(clause string) bool {
+	for _, prefix := range []string{
+		"最近開始準備",
+		"開始準備",
+		"持續準備",
+		"最近開始訓練",
+		"開始訓練",
+		"持續訓練",
+	} {
+		if !strings.HasPrefix(clause, prefix) {
+			continue
+		}
+		target := strings.TrimSpace(strings.TrimPrefix(clause, prefix))
+		if target == "馬拉松" {
+			return true
+		}
+		for _, participationTarget := range []string{
+			"第一次全程馬拉松訓練",
+			"全程馬拉松訓練",
+			"馬拉松訓練",
+			"馬拉松參賽",
+			"馬拉松比賽",
+		} {
+			if strings.HasPrefix(target, participationTarget) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func splitSignalClauses(content string) []string {
