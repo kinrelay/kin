@@ -14,10 +14,13 @@ const (
 )
 
 var (
-	distributedSystemsMarkers   = []string{"分散式系統", "一致性模型"}
-	distributedSystemsReversals = []string{"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較"}
-	marathonMarkers              = []string{"馬拉松"}
-	marathonReversals            = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
+	distributedSystemsMarkers = []string{"分散式系統", "一致性模型"}
+	distributedSystemsReversals = []string{
+		"不再深入研究", "不想深入研究", "停止深入研究", "沒有深入研究",
+		"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較",
+	}
+	marathonMarkers   = []string{"馬拉松"}
+	marathonReversals = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
 )
 
 // DeterministicGenerator is the provider-free MVP adapter used to make the derivation path executable and testable.
@@ -35,12 +38,22 @@ func NewDeterministicGenerator() DeterministicGenerator {
 
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
 	recognized := make([]recognizedSignal, 0, len(input.Activities))
+	retiredProvenance := make([]string, 0)
+	retiredSeen := make(map[string]struct{})
 	for _, activity := range input.Activities {
 		// Input order is chronological (oldest to newest). A reversal removes only
 		// previously recognized state, allowing a genuinely later affirmative signal
 		// to establish the topic again.
 		for topic := range reversedTopics(activity.Content) {
-			recognized = removeRecognizedTopic(recognized, topic)
+			var retired []string
+			recognized, retired = removeRecognizedTopic(recognized, topic)
+			for _, activityID := range retired {
+				if _, seen := retiredSeen[activityID]; seen {
+					continue
+				}
+				retiredSeen[activityID] = struct{}{}
+				retiredProvenance = append(retiredProvenance, activityID)
+			}
 		}
 
 		seenInActivity := make(map[string]struct{}, 2)
@@ -53,7 +66,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		}
 	}
 	if len(recognized) == 0 {
-		return applicationsocialcontext.GeneratedContext{}, nil
+		return applicationsocialcontext.GeneratedContext{RetiredProvenance: retiredProvenance}, nil
 	}
 
 	provenance := make([]string, 0, len(recognized))
@@ -74,8 +87,9 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	sort.Strings(topics)
 
 	return applicationsocialcontext.GeneratedContext{
-		Meaning:    "近期關注" + strings.Join(topics, "；"),
-		Provenance: provenance,
+		Meaning:           "近期關注" + strings.Join(topics, "；"),
+		Provenance:        provenance,
+		RetiredProvenance: retiredProvenance,
 	}, nil
 }
 
@@ -132,14 +146,17 @@ func reversedTopics(content string) map[string]struct{} {
 	return reversed
 }
 
-func removeRecognizedTopic(recognized []recognizedSignal, topic string) []recognizedSignal {
-	kept := recognized[:0]
+func removeRecognizedTopic(recognized []recognizedSignal, topic string) ([]recognizedSignal, []string) {
+	kept := make([]recognizedSignal, 0, len(recognized))
+	retired := make([]string, 0)
 	for _, signal := range recognized {
-		if signal.topic != topic {
-			kept = append(kept, signal)
+		if signal.topic == topic {
+			retired = append(retired, signal.activityID)
+			continue
 		}
+		kept = append(kept, signal)
 	}
-	return kept
+	return kept, retired
 }
 
 func isAffirmativeMarathonParticipationClause(clause string) bool {
@@ -185,11 +202,64 @@ func splitSignalClauses(content string) []string {
 	})
 	clauses := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if clause := strings.TrimSpace(part); clause != "" {
-			clauses = append(clauses, clause)
+		for _, segment := range splitCompoundActions(strings.TrimSpace(part)) {
+			if segment != "" {
+				clauses = append(clauses, segment)
+			}
 		}
 	}
 	return clauses
+}
+
+func splitCompoundActions(clause string) []string {
+	if clause == "" {
+		return nil
+	}
+	for index := 0; index < len(clause); {
+		boundaryIndex, boundaryLength := nextActionBoundary(clause[index:])
+		if boundaryIndex < 0 {
+			break
+		}
+		boundaryIndex += index
+		left := strings.TrimSpace(clause[:boundaryIndex])
+		right := strings.TrimSpace(clause[boundaryIndex+boundaryLength:])
+		result := make([]string, 0, 1+len(splitCompoundActions(right)))
+		if left != "" {
+			result = append(result, left)
+		}
+		return append(result, splitCompoundActions(right)...)
+	}
+	return []string{clause}
+}
+
+func nextActionBoundary(content string) (int, int) {
+	bestIndex := -1
+	bestLength := 0
+	for _, boundary := range []string{"以及", "並且", "同時", "並", "且", "而", "但"} {
+		searchFrom := 0
+		for searchFrom < len(content) {
+			relative := strings.Index(content[searchFrom:], boundary)
+			if relative < 0 {
+				break
+			}
+			index := searchFrom + relative
+			remainder := strings.TrimSpace(content[index+len(boundary):])
+			if startsSupportedAction(remainder) && (bestIndex < 0 || index < bestIndex) {
+				bestIndex = index
+				bestLength = len(boundary)
+			}
+			searchFrom = index + len(boundary)
+		}
+	}
+	return bestIndex, bestLength
+}
+
+func startsSupportedAction(content string) bool {
+	return hasAnyPrefix(content,
+		"最近開始", "開始", "持續",
+		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄",
+		"不再", "停止", "沒有", "不想", "放棄", "不參加", "不參賽",
+	)
 }
 
 func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string) bool {
@@ -215,17 +285,10 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 }
 
 func reversalObject(suffix string) string {
-	object := suffix
-	boundaryIndex := -1
-	for _, boundary := range []string{"以及", "並且", "同時", "並", "且", "而", "但"} {
-		if index := strings.Index(object, boundary); index >= 0 && (boundaryIndex < 0 || index < boundaryIndex) {
-			boundaryIndex = index
-		}
+	if boundaryIndex, _ := nextActionBoundary(suffix); boundaryIndex >= 0 {
+		suffix = suffix[:boundaryIndex]
 	}
-	if boundaryIndex >= 0 {
-		object = object[:boundaryIndex]
-	}
-	return strings.TrimSpace(object)
+	return strings.TrimSpace(suffix)
 }
 
 func isObjectlessReversal(object string) bool {
