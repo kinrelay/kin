@@ -45,8 +45,8 @@ func summarizeSignal(content string) (string, bool) {
 	normalized := strings.TrimSpace(content)
 	switch {
 	case strings.Contains(normalized, "分散式系統"), strings.Contains(normalized, "一致性模型"):
-		return "分散式系統的可靠性與一致性取捨", true
-	case strings.Contains(normalized, "馬拉松"):
+		return "分散式系統的一致性模型、可靠性與工程取捨", true
+	case strings.Contains(normalized, "馬拉松") && (strings.Contains(normalized, "準備") || strings.Contains(normalized, "訓練")):
 		return "耐力運動與長距離訓練", true
 	default:
 		return "", false
