@@ -20,14 +20,15 @@ type ActivityForSignificance struct {
 	Content string
 }
 
-// ActivitySignificanceReader exposes only owner-private normalized Activities needed for significance evaluation.
+// ActivitySignificanceReader exposes only the requested owner-private normalized Activity batch needed for significance evaluation.
 type ActivitySignificanceReader interface {
-	ListOwnerPrivateNormalized(ctx context.Context, ownerID domainidentity.ID) ([]ActivityForSignificance, error)
+	ListOwnerPrivateNormalized(ctx context.Context, ownerID domainidentity.ID, activityIDs []string) ([]ActivityForSignificance, error)
 }
 
-// EvaluateActivitySignificanceQuery evaluates the requester's own private Activities.
+// EvaluateActivitySignificanceQuery evaluates an explicit batch of the requester's own private Activities.
 type EvaluateActivitySignificanceQuery struct {
 	RequesterID string
+	ActivityIDs []string
 }
 
 // EvaluateActivitySignificance orchestrates owner-scoped Activity reading and deterministic domain policy.
@@ -46,8 +47,12 @@ func (uc EvaluateActivitySignificance) Execute(ctx context.Context, query Evalua
 	if err != nil {
 		return nil, err
 	}
+	if len(query.ActivityIDs) == 0 {
+		return []domainsocialcontext.SignificanceDecision{}, nil
+	}
 
-	activities, err := uc.reader.ListOwnerPrivateNormalized(ctx, requesterID)
+	activityIDs := append([]string(nil), query.ActivityIDs...)
+	activities, err := uc.reader.ListOwnerPrivateNormalized(ctx, requesterID, activityIDs)
 	if err != nil {
 		return nil, err
 	}
