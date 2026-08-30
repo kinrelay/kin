@@ -11,11 +11,11 @@ import (
 )
 
 type significanceActivityReaderFake struct {
-	items        []ActivityForSignificance
-	err          error
-	calls        int
-	ownerAsked   domainidentity.ID
-	activityIDs  []string
+	items       []ActivityForSignificance
+	err         error
+	calls       int
+	ownerAsked  domainidentity.ID
+	activityIDs []string
 }
 
 func (f *significanceActivityReaderFake) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID, activityIDs []string) ([]ActivityForSignificance, error) {
@@ -60,14 +60,14 @@ func TestEvaluateActivitySignificanceReadsOnlyRequestedBatchOfRequesterPrivateNo
 	if len(decisions) != 3 {
 		t.Fatalf("decision count = %d, want 3", len(decisions))
 	}
-	if decisions[0].Status != domainsocialcontext.SignificanceEligible {
-		t.Fatalf("decision[0] = %#v, want eligible", decisions[0])
+	if decisions[0].Status != domainsocialcontext.SignificanceSuppressed || decisions[0].Reason != domainsocialcontext.SuppressionDuplicate {
+		t.Fatalf("decision[0] = %#v, want older duplicate suppressed", decisions[0])
 	}
 	if decisions[1].Status != domainsocialcontext.SignificanceSuppressed || decisions[1].Reason != domainsocialcontext.SuppressionLowSignal {
 		t.Fatalf("decision[1] = %#v, want low-signal suppression", decisions[1])
 	}
-	if decisions[2].Status != domainsocialcontext.SignificanceSuppressed || decisions[2].Reason != domainsocialcontext.SuppressionDuplicate {
-		t.Fatalf("decision[2] = %#v, want duplicate suppression", decisions[2])
+	if decisions[2].Status != domainsocialcontext.SignificanceEligible {
+		t.Fatalf("decision[2] = %#v, want newest equivalent signal eligible", decisions[2])
 	}
 }
 
