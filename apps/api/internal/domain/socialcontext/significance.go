@@ -71,7 +71,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
-		if utf8.RuneCountInString(content) < MinimumMeaningfulRunes {
+		if utf8.RuneCountInString(content) < MinimumMeaningfulRunes && !isExplicitReversalSignal(content) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
 			decisions = append(decisions, decision)
@@ -100,6 +100,24 @@ func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 		}
 	}
 	return canonical
+}
+
+func isExplicitReversalSignal(content string) bool {
+	if utf8.RuneCountInString(content) < 6 {
+		return false
+	}
+	for _, marker := range []string{
+		"不再研究", "停止研究", "不想研究", "沒有研究",
+		"不再比較", "停止比較",
+		"不再準備", "停止準備", "沒有準備",
+		"不再訓練", "停止訓練", "沒有訓練",
+		"不參加", "不參賽", "放棄",
+	} {
+		if strings.Contains(content, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeSignificanceContent(value string) string {
