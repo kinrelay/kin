@@ -27,6 +27,17 @@ func NewMemoryRepository() *MemoryRepository {
 	return &MemoryRepository{}
 }
 
+func (r *MemoryRepository) ExistsEquivalent(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, entry := range r.entries {
+		if entry.ownerID == ownerID && entry.context.Meaning() == socialContext.Meaning() {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (r *MemoryRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
