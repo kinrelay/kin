@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 )
 
@@ -16,9 +17,10 @@ func TestMemoryRepositorySavesPromotedSocialContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PromoteContextCandidate() error = %v", err)
 	}
+	ownerID, _ := domainidentity.NewID("owner-1")
 
 	repository := NewMemoryRepository()
-	if err := repository.Save(context.Background(), socialContext); err != nil {
+	if err := repository.Save(context.Background(), ownerID, socialContext); err != nil {
 		t.Fatalf("Save() error = %v", err)
 	}
 
