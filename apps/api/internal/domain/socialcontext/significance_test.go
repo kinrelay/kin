@@ -50,22 +50,20 @@ func TestEvaluateSignificanceSuppressesLowSignalContentDeterministically(t *test
 	}
 }
 
-func TestEvaluateSignificanceSuppressesLaterExactNormalizedDuplicates(t *testing.T) {
-	decisions := EvaluateSignificance([]SignificanceSignal{
-		{ActivityID: "activity-1", Content: "Reading   Distributed Systems Papers"},
-		{ActivityID: "activity-2", Content: " reading distributed systems papers "},
-		{ActivityID: "activity-3", Content: "Comparing consensus protocols and trade-offs"},
+func TestEvaluateSignificanceUsesStableActivityIdentityForDuplicateWinner(t *testing.T) {
+	forward := EvaluateSignificance([]SignificanceSignal{
+		{ActivityID: "activity-b", Content: "Reading   Distributed Systems Papers"},
+		{ActivityID: "activity-a", Content: " reading distributed systems papers "},
+	})
+	reversed := EvaluateSignificance([]SignificanceSignal{
+		{ActivityID: "activity-a", Content: " reading distributed systems papers "},
+		{ActivityID: "activity-b", Content: "Reading   Distributed Systems Papers"},
 	})
 
-	if decisions[0].Status != SignificanceEligible {
-		t.Fatalf("first decision = %#v, want eligible", decisions[0])
-	}
-	if decisions[1].Status != SignificanceSuppressed || decisions[1].Reason != SuppressionDuplicate {
-		t.Fatalf("duplicate decision = %#v, want duplicate suppression", decisions[1])
-	}
-	if decisions[2].Status != SignificanceEligible {
-		t.Fatalf("distinct decision = %#v, want eligible", decisions[2])
-	}
+	assertDuplicateDecisionByID(t, forward, "activity-a", SignificanceEligible, SuppressionNone)
+	assertDuplicateDecisionByID(t, forward, "activity-b", SignificanceSuppressed, SuppressionDuplicate)
+	assertDuplicateDecisionByID(t, reversed, "activity-a", SignificanceEligible, SuppressionNone)
+	assertDuplicateDecisionByID(t, reversed, "activity-b", SignificanceSuppressed, SuppressionDuplicate)
 }
 
 func TestEvaluateSignificancePreservesInputOrderAndActivityIdentity(t *testing.T) {
@@ -77,4 +75,17 @@ func TestEvaluateSignificancePreservesInputOrderAndActivityIdentity(t *testing.T
 	if decisions[0].ActivityID != "activity-b" || decisions[1].ActivityID != "activity-a" {
 		t.Fatalf("activity identity/order = %#v, want normalized input order", decisions)
 	}
+}
+
+func assertDuplicateDecisionByID(t *testing.T, decisions []SignificanceDecision, activityID string, status SignificanceStatus, reason SuppressionReason) {
+	t.Helper()
+	for _, decision := range decisions {
+		if decision.ActivityID == activityID {
+			if decision.Status != status || decision.Reason != reason {
+				t.Fatalf("decision for %s = %#v, want status=%q reason=%q", activityID, decision, status, reason)
+			}
+			return
+		}
+	}
+	t.Fatalf("missing decision for %s in %#v", activityID, decisions)
 }
