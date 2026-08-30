@@ -29,8 +29,15 @@ func (f *fakeContextGenerator) Generate(_ context.Context, input ContextGenerati
 }
 
 type fakeSocialContextRepository struct {
-	owners []domainidentity.ID
-	saved  []domainsocialcontext.SocialContext
+	owners     []domainidentity.ID
+	saved      []domainsocialcontext.SocialContext
+	equivalent bool
+	existsCalls int
+}
+
+func (f *fakeSocialContextRepository) ExistsEquivalent(_ context.Context, _ domainidentity.ID, _ domainsocialcontext.SocialContext) (bool, error) {
+	f.existsCalls++
+	return f.equivalent, nil
 }
 
 func (f *fakeSocialContextRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
@@ -143,5 +150,25 @@ func TestDeriveContextCandidateRejectsGeneratorProvenanceOutsideEligibleSources(
 	}
 	if outcome.Status != DerivationRejected || outcome.Reason != domainsocialcontext.ErrMissingContextProvenance || len(repository.saved) != 0 {
 		t.Fatalf("outcome = %#v, saved = %d; want rejected provenance without persistence", outcome, len(repository.saved))
+	}
+}
+
+func TestDeriveContextCandidateSuppressesEquivalentPersistedContext(t *testing.T) {
+	ownerID, _ := domainidentity.NewID("owner-1")
+	generator := &fakeContextGenerator{out: GeneratedContext{
+		Meaning:    "近期關注分散式系統的一致性模型、可靠性與工程取捨",
+		Provenance: []string{"activity-1"},
+	}}
+	repository := &fakeSocialContextRepository{equivalent: true}
+	uc := NewDeriveContextCandidate(fakeContextActivityReader{activities: []ActivityForContext{
+		{ID: "activity-1", OwnerID: ownerID, Content: "最近開始深入研究分散式系統設計"},
+	}}, generator, repository)
+
+	outcome, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{RequesterID: "owner-1", ActivityIDs: []string{"activity-1"}})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if outcome.Status != DerivationSuppressed || repository.existsCalls != 1 || len(repository.saved) != 0 {
+		t.Fatalf("outcome = %#v, exists calls = %d, saved = %d; want suppressed equivalent without persistence", outcome, repository.existsCalls, len(repository.saved))
 	}
 }
