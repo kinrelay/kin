@@ -86,6 +86,9 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	return decisions
 }
 
+// canonicalActivityIDs treats the input order as occurrence chronology and keeps
+// the newest representative for equivalent normalized content. This lets a later
+// affirmative signal re-establish current state after an intervening reversal.
 func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 	canonical := make(map[string]string, len(signals))
 	for _, signal := range signals {
@@ -94,19 +97,14 @@ func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 		if activityID == "" || content == "" {
 			continue
 		}
-		key := strings.ToLower(content)
-		if current, exists := canonical[key]; !exists || activityID < current {
-			canonical[key] = activityID
-		}
+		canonical[strings.ToLower(content)] = activityID
 	}
 	return canonical
 }
 
 func isExplicitReversalSignal(content string) bool {
-	if utf8.RuneCountInString(content) < 6 {
-		return false
-	}
 	for _, marker := range []string{
+		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究",
 		"不再研究", "停止研究", "不想研究", "沒有研究",
 		"不再比較", "停止比較",
 		"不再準備", "停止準備", "沒有準備",
