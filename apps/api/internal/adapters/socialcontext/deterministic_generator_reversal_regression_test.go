@@ -2,6 +2,7 @@ package socialcontext
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	appsc "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
@@ -46,5 +47,34 @@ func TestDeterministicGeneratorReconcilesTopicReversalAcrossActivities(t *testin
 	}
 	if got.Meaning != "" || len(got.Provenance) != 0 {
 		t.Fatalf("Generate() = %#v, want a later cross-activity reversal to suppress the stale topic", got)
+	}
+}
+
+func TestDeterministicGeneratorTreatsCompoundConjunctionAsReversalObjectBoundary(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始研究分散式系統但後來停止研究英文以及持續比較一致性模型"
+
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want unrelated reversal before 以及 not to suppress the supported topic", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorAccumulatesMultipleSupportedTopicsWithinOneActivity(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始研究分散式系統，開始準備馬拉松"
+
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-mixed", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !strings.Contains(got.Meaning, "分散式系統") || !strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want both supported topics", got.Meaning)
+	}
+	if len(got.Provenance) != 1 || got.Provenance[0] != "activity-mixed" {
+		t.Fatalf("Generate() provenance = %#v, want contributing activity exactly once", got.Provenance)
 	}
 }
