@@ -73,17 +73,19 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 2 — Activity 成為 Derived Social Context**。
+目前 **Active Slice：MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**。
 
 建議順序：
 
 1. **MVP 0 — 建立 Identity 與 Close-friend Relationship**
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
-3. **MVP 2 — Activity 成為 Derived Social Context** ← Active
-4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
+3. **MVP 2 — Activity 成為 Derived Social Context**
+4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼** ← Active
 5. **MVP 4 — Friend 收到有用的 Friend Pulse**
 6. **MVP 5 — Context 幫助開始真實 Conversation**
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
+
+MVP 2 的 completion signal 已由 #33（significance / suppression）、#34（Context Candidate validation / promotion）與 #35（owner-only Social Context review query）完成並驗證，因此本次 transition 正式啟用 MVP 3。
 
 這個順序代表目前的最小驗證路徑，不是永久 roadmap。
 
