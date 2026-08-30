@@ -250,3 +250,15 @@ func TestDeterministicGeneratorDoesNotBindUnrelatedReversalToRecognizedTopic(t *
 		})
 	}
 }
+
+func TestDeterministicGeneratorLimitsUnpunctuatedReversalToItsObject(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始研究分散式系統但後來停止研究英文並持續比較一致性模型"
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want supported distributed-systems context preserved when reversal object is English", got.Meaning)
+	}
+}
