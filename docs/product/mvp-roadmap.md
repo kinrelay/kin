@@ -73,12 +73,12 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 0 — 建立 Identity 與 Close-friend Relationship**。
+目前 **Active Slice：MVP 1 — 使用者提供一則 Meaningful Activity**。
 
 建議順序：
 
-1. **MVP 0 — 建立 Identity 與 Close-friend Relationship** ← Active
-2. **MVP 1 — 使用者提供一則 Meaningful Activity**
+1. **MVP 0 — 建立 Identity 與 Close-friend Relationship**
+2. **MVP 1 — 使用者提供一則 Meaningful Activity** ← Active
 3. **MVP 2 — Activity 成為 Derived Social Context**
 4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
 5. **MVP 4 — Friend 收到有用的 Friend Pulse**
