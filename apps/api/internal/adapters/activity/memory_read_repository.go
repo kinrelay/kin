@@ -5,6 +5,7 @@ import (
 
 	applicationactivity "github.com/kinrelay/kin/apps/api/internal/application/activity"
 	applicationsocialcontext "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
+	domainactivity "github.com/kinrelay/kin/apps/api/internal/domain/activity"
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 )
 
@@ -54,7 +55,7 @@ func (r *MemoryReadRepository) ListOwnerPrivateNormalized(_ context.Context, own
 		}
 		seen[id] = struct{}{}
 
-		value, ok := r.source.activities[id]
+		value, ok := r.source.activities[domainactivity.ID(id)]
 		if !ok || value.OwnerID() != ownerID || !value.IsPrivate() {
 			continue
 		}
