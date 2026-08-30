@@ -42,6 +42,7 @@ type ContextGenerator interface {
 }
 
 type SocialContextRepository interface {
+	ExistsEquivalent(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error)
 	Save(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error
 }
 
@@ -130,6 +131,13 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	socialContext, err := domainsocialcontext.PromoteContextCandidate(candidate, eligibleSources)
 	if err != nil {
 		return DerivationOutcome{Status: DerivationRejected, Reason: err}, nil
+	}
+	equivalent, err := uc.repository.ExistsEquivalent(ctx, requesterID, socialContext)
+	if err != nil {
+		return DerivationOutcome{}, err
+	}
+	if equivalent {
+		return DerivationOutcome{Status: DerivationSuppressed}, nil
 	}
 	if err := uc.repository.Save(ctx, requesterID, socialContext); err != nil {
 		return DerivationOutcome{}, err
