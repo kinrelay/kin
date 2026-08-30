@@ -161,6 +161,26 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 	}
 }
 
+func TestDeterministicGeneratorRejectsMarathonPreparationWithoutParticipationIntent(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, raw := range []string{
+		"開始準備放棄馬拉松訓練",
+		"開始準備馬拉松賽事的志工物資",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+				{ID: "activity-run", Content: raw},
+			}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning != "" || len(got.Provenance) != 0 {
+				t.Fatalf("Generate() = %#v for non-participation preparation %q, want blank meaning and provenance", got, raw)
+			}
+		})
+	}
+}
+
 func TestDeterministicGeneratorScopesIntentToIndividualClauses(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	for _, raw := range []string{
@@ -186,6 +206,8 @@ func TestDeterministicGeneratorRejectsLaterReversalOfRecognizedIntent(t *testing
 	for _, raw := range []string{
 		"最近開始研究分散式系統，但後來不再研究",
 		"最近開始準備馬拉松，但後來沒有準備",
+		"最近開始研究分散式系統但後來不再研究",
+		"最近開始準備馬拉松但後來沒有準備",
 	} {
 		t.Run(raw, func(t *testing.T) {
 			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
