@@ -3,6 +3,8 @@ package socialcontext
 import (
 	"context"
 	"errors"
+	"sort"
+	"time"
 
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
@@ -14,9 +16,10 @@ var (
 )
 
 type ActivityForContext struct {
-	ID      string
-	OwnerID domainidentity.ID
-	Content string
+	ID         string
+	OwnerID    domainidentity.ID
+	Content    string
+	OccurredAt time.Time
 }
 
 type ContextActivityReader interface {
@@ -91,8 +94,6 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 		return DerivationOutcome{}, err
 	}
 
-	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
-	byID := make(map[string]ActivityForContext, len(activities))
 	for _, activity := range activities {
 		if activity.OwnerID != requesterID {
 			return DerivationOutcome{}, ErrContextActivityOwnerMismatch
@@ -100,6 +101,21 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 		if _, requested := requestedIDs[activity.ID]; !requested {
 			return DerivationOutcome{}, ErrContextActivityNotRequested
 		}
+	}
+	// Reversal reconciliation represents current state, so derive from occurrence
+	// chronology rather than caller-supplied Activity ID order. Stable sorting
+	// preserves reader order for legacy/test projections without timestamps.
+	sort.SliceStable(activities, func(i, j int) bool {
+		left, right := activities[i].OccurredAt, activities[j].OccurredAt
+		if left.IsZero() || right.IsZero() || left.Equal(right) {
+			return false
+		}
+		return left.Before(right)
+	})
+
+	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
+	byID := make(map[string]ActivityForContext, len(activities))
+	for _, activity := range activities {
 		byID[activity.ID] = activity
 		signals = append(signals, domainsocialcontext.SignificanceSignal{ActivityID: activity.ID, Content: activity.Content})
 	}
