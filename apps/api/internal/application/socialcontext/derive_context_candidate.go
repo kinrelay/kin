@@ -8,7 +8,10 @@ import (
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 )
 
-var ErrContextActivityOwnerMismatch = errors.New("context activity owner mismatch")
+var (
+	ErrContextActivityOwnerMismatch = errors.New("context activity owner mismatch")
+	ErrContextActivityNotRequested  = errors.New("context activity was not requested")
+)
 
 type ActivityForContext struct {
 	ID      string
@@ -79,6 +82,10 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 		return DerivationOutcome{Status: DerivationSuppressed}, nil
 	}
 
+	requestedIDs := make(map[string]struct{}, len(command.ActivityIDs))
+	for _, id := range command.ActivityIDs {
+		requestedIDs[id] = struct{}{}
+	}
 	activities, err := uc.reader.ListOwnerPrivateNormalized(ctx, requesterID, append([]string(nil), command.ActivityIDs...))
 	if err != nil {
 		return DerivationOutcome{}, err
@@ -89,6 +96,9 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	for _, activity := range activities {
 		if activity.OwnerID != requesterID {
 			return DerivationOutcome{}, ErrContextActivityOwnerMismatch
+		}
+		if _, requested := requestedIDs[activity.ID]; !requested {
+			return DerivationOutcome{}, ErrContextActivityNotRequested
 		}
 		byID[activity.ID] = activity
 		signals = append(signals, domainsocialcontext.SignificanceSignal{ActivityID: activity.ID, Content: activity.Content})
