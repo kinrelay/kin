@@ -45,26 +45,40 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 
 func summarizeSignal(content string) (string, bool) {
 	normalized := strings.TrimSpace(content)
-	if containsAny(normalized,
-		"不再", "沒有", "停止",
-		"不研究", "不深入研究", "不準備", "不訓練",
-	) {
-		return "", false
-	}
 
 	switch {
-	case containsAny(normalized, "深入研究分散式系統", "研究分散式系統", "比較不同一致性模型", "研究一致性模型"):
+	case hasAnyPrefix(normalized,
+		"最近開始深入研究分散式系統",
+		"開始深入研究分散式系統",
+		"持續深入研究分散式系統",
+		"最近開始研究分散式系統",
+		"開始研究分散式系統",
+		"持續研究分散式系統",
+		"最近開始比較不同一致性模型",
+		"開始比較不同一致性模型",
+		"持續比較不同一致性模型",
+		"最近開始研究一致性模型",
+		"開始研究一致性模型",
+		"持續研究一致性模型",
+	):
 		return "分散式系統的一致性模型、可靠性與工程取捨", true
-	case strings.Contains(normalized, "馬拉松") && containsAny(normalized, "準備", "訓練"):
+	case strings.Contains(normalized, "馬拉松") && hasAnyPrefix(normalized,
+		"最近開始準備",
+		"開始準備",
+		"持續準備",
+		"最近開始訓練",
+		"開始訓練",
+		"持續訓練",
+	):
 		return "耐力運動與長距離訓練", true
 	default:
 		return "", false
 	}
 }
 
-func containsAny(content string, patterns ...string) bool {
-	for _, pattern := range patterns {
-		if strings.Contains(content, pattern) {
+func hasAnyPrefix(content string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(content, prefix) {
 			return true
 		}
 	}
