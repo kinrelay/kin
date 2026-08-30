@@ -38,6 +38,23 @@ func (r *MemoryRepository) ExistsEquivalent(_ context.Context, ownerID domainide
 	return false, nil
 }
 
+func (r *MemoryRepository) SaveIfAbsent(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, entry := range r.entries {
+		if entry.ownerID == ownerID && entry.context.Meaning() == socialContext.Meaning() {
+			return false, nil
+		}
+	}
+	r.entries = append(r.entries, storedSocialContext{
+		id:         fmt.Sprintf("social-context-%d", len(r.entries)+1),
+		ownerID:    ownerID,
+		context:    socialContext,
+		promotedAt: time.Now().UTC(),
+	})
+	return true, nil
+}
+
 func (r *MemoryRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
