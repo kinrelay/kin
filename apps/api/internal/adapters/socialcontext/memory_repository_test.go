@@ -21,8 +21,12 @@ func TestMemoryRepositorySavesPromotedSocialContext(t *testing.T) {
 	ownerID, _ := domainidentity.NewID("owner-1")
 
 	repository := NewMemoryRepository()
-	if err := repository.Save(context.Background(), ownerID, socialContext); err != nil {
-		t.Fatalf("Save() error = %v", err)
+	inserted, err := repository.SaveIfAbsent(context.Background(), ownerID, socialContext)
+	if err != nil {
+		t.Fatalf("SaveIfAbsent() error = %v", err)
+	}
+	if !inserted {
+		t.Fatal("SaveIfAbsent() inserted = false, want true")
 	}
 
 	stored := repository.All()
@@ -53,21 +57,21 @@ func TestMemoryRepositoryEquivalentContextIsOwnerScopedAndMeaningSpecific(t *tes
 	}
 
 	repository := NewMemoryRepository()
-	if err := repository.Save(ctx, ownerID, storedContext); err != nil {
-		t.Fatalf("Save() error = %v", err)
+	inserted, err := repository.SaveIfAbsent(ctx, ownerID, storedContext)
+	if err != nil || !inserted {
+		t.Fatalf("SaveIfAbsent(initial) = %v, %v; want true, nil", inserted, err)
 	}
-
-	got, err := repository.ExistsEquivalent(ctx, ownerID, equivalentContext)
-	if err != nil || !got {
-		t.Fatalf("ExistsEquivalent(same owner, same meaning) = %v, %v; want true, nil", got, err)
+	inserted, err = repository.SaveIfAbsent(ctx, ownerID, equivalentContext)
+	if err != nil || inserted {
+		t.Fatalf("SaveIfAbsent(same owner, same meaning) = %v, %v; want false, nil", inserted, err)
 	}
-	got, err = repository.ExistsEquivalent(ctx, otherOwnerID, equivalentContext)
-	if err != nil || got {
-		t.Fatalf("ExistsEquivalent(other owner) = %v, %v; want false, nil", got, err)
+	inserted, err = repository.SaveIfAbsent(ctx, otherOwnerID, equivalentContext)
+	if err != nil || !inserted {
+		t.Fatalf("SaveIfAbsent(other owner) = %v, %v; want true, nil", inserted, err)
 	}
-	got, err = repository.ExistsEquivalent(ctx, ownerID, differentContext)
-	if err != nil || got {
-		t.Fatalf("ExistsEquivalent(different meaning) = %v, %v; want false, nil", got, err)
+	inserted, err = repository.SaveIfAbsent(ctx, ownerID, differentContext)
+	if err != nil || !inserted {
+		t.Fatalf("SaveIfAbsent(different meaning) = %v, %v; want true, nil", inserted, err)
 	}
 }
 
