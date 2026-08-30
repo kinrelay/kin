@@ -160,3 +160,23 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 		})
 	}
 }
+
+func TestDeterministicGeneratorScopesIntentToIndividualClauses(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, raw := range []string{
+		"最近開始準備第一次全程馬拉松訓練，目前沒有受傷",
+		"停止熬夜，開始準備馬拉松",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+				{ID: "activity-run", Content: raw},
+			}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning == "" || !strings.Contains(got.Meaning, "耐力運動") {
+				t.Fatalf("Generate() meaning = %q for affirmative marathon clause %q, want derived endurance context", got.Meaning, raw)
+			}
+		})
+	}
+}
