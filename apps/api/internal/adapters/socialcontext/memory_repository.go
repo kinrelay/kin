@@ -44,6 +44,41 @@ func (r *MemoryRepository) SaveIfAbsent(_ context.Context, ownerID domainidentit
 	return true, nil
 }
 
+func (r *MemoryRepository) RetireByProvenance(_ context.Context, ownerID domainidentity.ID, activityIDs []string) (int, error) {
+	if len(activityIDs) == 0 {
+		return 0, nil
+	}
+	retiredIDs := make(map[string]struct{}, len(activityIDs))
+	for _, activityID := range activityIDs {
+		if activityID != "" {
+			retiredIDs[activityID] = struct{}{}
+		}
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	kept := r.entries[:0]
+	retired := 0
+	for _, entry := range r.entries {
+		if entry.ownerID != ownerID || !provenanceIntersects(entry.context.Provenance(), retiredIDs) {
+			kept = append(kept, entry)
+			continue
+		}
+		retired++
+	}
+	r.entries = kept
+	return retired, nil
+}
+
+func provenanceIntersects(provenance []string, retiredIDs map[string]struct{}) bool {
+	for _, activityID := range provenance {
+		if _, retired := retiredIDs[activityID]; retired {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *MemoryRepository) All() []domainsocialcontext.SocialContext {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
