@@ -8,32 +8,58 @@ import (
 	applicationsocialcontext "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
 )
 
+const (
+	distributedSystemsTopic = "分散式系統的一致性模型、可靠性與工程取捨"
+	marathonTopic           = "耐力運動與長距離訓練"
+)
+
+var (
+	distributedSystemsMarkers = []string{"分散式系統", "一致性模型"}
+	distributedSystemsReversals = []string{"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較"}
+	marathonMarkers = []string{"馬拉松"}
+	marathonReversals = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
+)
+
 // DeterministicGenerator is the provider-free MVP adapter used to make the derivation path executable and testable.
 // It derives a stable higher-level statement from significance-approved signals without replaying raw Activity content verbatim.
 type DeterministicGenerator struct{}
+
+type recognizedSignal struct {
+	activityID string
+	topic      string
+}
 
 func NewDeterministicGenerator() DeterministicGenerator {
 	return DeterministicGenerator{}
 }
 
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
-	provenance := make([]string, 0, len(input.Activities))
-	topics := make([]string, 0, len(input.Activities))
-	seenTopics := make(map[string]struct{}, len(input.Activities))
+	recognized := make([]recognizedSignal, 0, len(input.Activities))
 	for _, activity := range input.Activities {
+		for topic := range reversedTopics(activity.Content) {
+			recognized = removeRecognizedTopic(recognized, topic)
+		}
+
 		topic, ok := summarizeSignal(activity.Content)
 		if !ok {
 			continue
 		}
-		provenance = append(provenance, activity.ID)
-		if _, seen := seenTopics[topic]; seen {
+		recognized = append(recognized, recognizedSignal{activityID: activity.ID, topic: topic})
+	}
+	if len(recognized) == 0 {
+		return applicationsocialcontext.GeneratedContext{}, nil
+	}
+
+	provenance := make([]string, 0, len(recognized))
+	topics := make([]string, 0, len(recognized))
+	seenTopics := make(map[string]struct{}, len(recognized))
+	for _, signal := range recognized {
+		provenance = append(provenance, signal.activityID)
+		if _, seen := seenTopics[signal.topic]; seen {
 			continue
 		}
-		seenTopics[topic] = struct{}{}
-		topics = append(topics, topic)
-	}
-	if len(topics) == 0 {
-		return applicationsocialcontext.GeneratedContext{}, nil
+		seenTopics[signal.topic] = struct{}{}
+		topics = append(topics, signal.topic)
 	}
 	sort.Strings(topics)
 
@@ -61,26 +87,40 @@ func summarizeSignal(content string) (string, bool) {
 			"開始研究一致性模型",
 			"持續研究一致性模型",
 		):
-			if hasTopicReversal(
-				clauses[i:],
-				[]string{"分散式系統", "一致性模型"},
-				[]string{"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較"},
-			) {
+			if hasTopicReversal(clauses[i:], distributedSystemsMarkers, distributedSystemsReversals) {
 				continue
 			}
-			return "分散式系統的一致性模型、可靠性與工程取捨", true
+			return distributedSystemsTopic, true
 		case isAffirmativeMarathonParticipationClause(clause):
-			if hasTopicReversal(
-				clauses[i:],
-				[]string{"馬拉松"},
-				[]string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"},
-			) {
+			if hasTopicReversal(clauses[i:], marathonMarkers, marathonReversals) {
 				continue
 			}
-			return "耐力運動與長距離訓練", true
+			return marathonTopic, true
 		}
 	}
 	return "", false
+}
+
+func reversedTopics(content string) map[string]struct{} {
+	clauses := splitSignalClauses(content)
+	reversed := make(map[string]struct{}, 2)
+	if hasTopicReversal(clauses, distributedSystemsMarkers, distributedSystemsReversals) {
+		reversed[distributedSystemsTopic] = struct{}{}
+	}
+	if hasTopicReversal(clauses, marathonMarkers, marathonReversals) {
+		reversed[marathonTopic] = struct{}{}
+	}
+	return reversed
+}
+
+func removeRecognizedTopic(recognized []recognizedSignal, topic string) []recognizedSignal {
+	kept := recognized[:0]
+	for _, signal := range recognized {
+		if signal.topic != topic {
+			kept = append(kept, signal)
+		}
+	}
+	return kept
 }
 
 func isAffirmativeMarathonParticipationClause(clause string) bool {
@@ -136,17 +176,19 @@ func splitSignalClauses(content string) []string {
 func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string) bool {
 	for _, clause := range clauses {
 		for _, pattern := range reversalPatterns {
-			index := strings.Index(clause, pattern)
-			if index < 0 {
-				continue
-			}
-
-			suffix := strings.TrimSpace(clause[index+len(pattern):])
-			if suffix == "" {
-				return true
-			}
-			if hasAnySubstring(reversalObject(suffix), topicMarkers...) {
-				return true
+			searchFrom := 0
+			for searchFrom < len(clause) {
+				relativeIndex := strings.Index(clause[searchFrom:], pattern)
+				if relativeIndex < 0 {
+					break
+				}
+				index := searchFrom + relativeIndex
+				suffix := strings.TrimSpace(clause[index+len(pattern):])
+				object := reversalObject(suffix)
+				if isObjectlessReversal(object) || hasAnySubstring(object, topicMarkers...) {
+					return true
+				}
+				searchFrom = index + len(pattern)
 			}
 		}
 	}
@@ -161,6 +203,15 @@ func reversalObject(suffix string) string {
 		}
 	}
 	return strings.TrimSpace(object)
+}
+
+func isObjectlessReversal(object string) bool {
+	switch strings.TrimSpace(object) {
+	case "", "了":
+		return true
+	default:
+		return false
+	}
 }
 
 func hasAnyPrefix(content string, prefixes ...string) bool {
