@@ -131,3 +131,23 @@ func TestDeterministicGeneratorCanonicalizesTopicOrder(t *testing.T) {
 		t.Fatalf("meanings differ by input order: first=%q reversed=%q", first.Meaning, reversed.Meaning)
 	}
 }
+
+func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, raw := range []string{
+		"我不研究分散式系統",
+		"完成第一次全程馬拉松比賽，沒有準備",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+				{ID: "activity-negated", Content: raw},
+			}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning != "" {
+				t.Fatalf("Generate() meaning = %q for negated/contrastive signal %q, want blank meaning", got.Meaning, raw)
+			}
+		})
+	}
+}
