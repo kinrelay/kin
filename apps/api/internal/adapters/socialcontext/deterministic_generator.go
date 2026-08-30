@@ -20,7 +20,11 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	topics := make([]string, 0, len(input.Activities))
 	for _, activity := range input.Activities {
 		provenance = append(provenance, activity.ID)
-		topics = append(topics, summarizeSignal(activity.Content))
+		topic, ok := summarizeSignal(activity.Content)
+		if !ok {
+			return applicationsocialcontext.GeneratedContext{Provenance: provenance}, nil
+		}
+		topics = append(topics, topic)
 	}
 
 	return applicationsocialcontext.GeneratedContext{
@@ -29,7 +33,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	}, nil
 }
 
-func summarizeSignal(content string) string {
+func summarizeSignal(content string) (string, bool) {
 	summary := strings.TrimSpace(content)
 	for _, prefix := range []string{
 		"最近開始",
@@ -41,8 +45,12 @@ func summarizeSignal(content string) string {
 		"準備",
 	} {
 		if strings.HasPrefix(summary, prefix) {
-			summary = strings.TrimSpace(strings.TrimPrefix(summary, prefix))
+			topic := strings.TrimSpace(strings.TrimPrefix(summary, prefix))
+			if topic == "" || topic == summary {
+				return "", false
+			}
+			return topic, true
 		}
 	}
-	return summary
+	return "", false
 }
