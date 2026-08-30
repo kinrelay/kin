@@ -53,8 +53,8 @@ func TestMemoryReadRepositoryListsOnlyRequestedPrivateNormalizedActivitiesForCon
 		t.Fatalf("ListOwnerPrivateNormalized() error = %v", err)
 	}
 	want := []applicationsocialcontext.ActivityForContext{
-		{ID: "alice-first", OwnerID: aliceID, Content: "最近開始深入研究分散式系統設計"},
-		{ID: "alice-second", OwnerID: aliceID, Content: "持續比較不同一致性模型的工程取捨"},
+		{ID: "alice-first", OwnerID: aliceID, Content: "最近開始深入研究分散式系統設計", OccurredAt: baseTime},
+		{ID: "alice-second", OwnerID: aliceID, Content: "持續比較不同一致性模型的工程取捨", OccurredAt: baseTime.Add(time.Hour)},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("ListOwnerPrivateNormalized() = %#v, want chronological occurrence order %#v", got, want)
