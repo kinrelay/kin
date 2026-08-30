@@ -93,3 +93,41 @@ func TestDeterministicGeneratorAbstractsSingleSignalBeyondLightParaphrase(t *tes
 		t.Fatalf("Generate() meaning = %q, must not retain the source action phrase", got.Meaning)
 	}
 }
+
+func TestDeterministicGeneratorKeepsRecognizedTopicsWhenAnotherSignalIsUnsupported(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-unsupported", Content: "完成第一次全程馬拉松比賽"},
+		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want recognized topic preserved despite unsupported signal", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorCanonicalizesTopicOrder(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	firstInput := appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
+		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
+	}}
+	reversedInput := appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
+		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
+	}}
+
+	first, err := generator.Generate(context.Background(), firstInput)
+	if err != nil {
+		t.Fatalf("Generate(first) error = %v", err)
+	}
+	reversed, err := generator.Generate(context.Background(), reversedInput)
+	if err != nil {
+		t.Fatalf("Generate(reversed) error = %v", err)
+	}
+	if first.Meaning != reversed.Meaning {
+		t.Fatalf("meanings differ by input order: first=%q reversed=%q", first.Meaning, reversed.Meaning)
+	}
+}
