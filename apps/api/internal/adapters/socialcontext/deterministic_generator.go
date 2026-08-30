@@ -44,7 +44,8 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 }
 
 func summarizeSignal(content string) (string, bool) {
-	for _, clause := range splitSignalClauses(content) {
+	clauses := splitSignalClauses(content)
+	for i, clause := range clauses {
 		switch {
 		case hasAnyPrefix(clause,
 			"最近開始深入研究分散式系統",
@@ -60,6 +61,9 @@ func summarizeSignal(content string) (string, bool) {
 			"開始研究一致性模型",
 			"持續研究一致性模型",
 		):
+			if hasLaterReversal(clauses[i+1:], "不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較") {
+				return "", false
+			}
 			return "分散式系統的一致性模型、可靠性與工程取捨", true
 		case strings.Contains(clause, "馬拉松") && hasAnyPrefix(clause,
 			"最近開始準備",
@@ -69,6 +73,9 @@ func summarizeSignal(content string) (string, bool) {
 			"開始訓練",
 			"持續訓練",
 		):
+			if hasLaterReversal(clauses[i+1:], "沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練") {
+				return "", false
+			}
 			return "耐力運動與長距離訓練", true
 		}
 	}
@@ -91,6 +98,17 @@ func splitSignalClauses(content string) []string {
 		}
 	}
 	return clauses
+}
+
+func hasLaterReversal(clauses []string, patterns ...string) bool {
+	for _, clause := range clauses {
+		for _, pattern := range patterns {
+			if strings.Contains(clause, pattern) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hasAnyPrefix(content string, prefixes ...string) bool {
