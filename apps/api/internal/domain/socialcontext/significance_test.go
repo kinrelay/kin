@@ -50,6 +50,16 @@ func TestEvaluateSignificanceSuppressesLowSignalContentDeterministically(t *test
 	}
 }
 
+func TestEvaluateSignificanceKeepsConciseExplicitReversalEligibleForReconciliation(t *testing.T) {
+	decisions := EvaluateSignificance([]SignificanceSignal{{ActivityID: "activity-stop", Content: "不再研究分散式系統"}})
+	if len(decisions) != 1 {
+		t.Fatalf("decision count = %d, want 1", len(decisions))
+	}
+	if decisions[0].Status != SignificanceEligible || decisions[0].Reason != SuppressionNone {
+		t.Fatalf("reversal decision = %#v, want explicit reversal eligible so derivation can reconcile stale context", decisions[0])
+	}
+}
+
 func TestEvaluateSignificanceUsesStableActivityIdentityForDuplicateWinner(t *testing.T) {
 	forward := EvaluateSignificance([]SignificanceSignal{
 		{ActivityID: "activity-b", Content: "Reading   Distributed Systems Papers"},
