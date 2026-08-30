@@ -4,6 +4,7 @@ import (
 	"context"
 
 	applicationactivity "github.com/kinrelay/kin/apps/api/internal/application/activity"
+	applicationsocialcontext "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 )
 
@@ -34,6 +35,35 @@ func (r *MemoryReadRepository) ListByOwner(_ context.Context, ownerID domainiden
 			Provenance:    string(value.Provenance()),
 			OccurredAt:    value.OccurredAt(),
 			ContributedAt: value.ContributedAt(),
+		})
+	}
+
+	return result, nil
+}
+
+// ListOwnerPrivateNormalized exposes only explicitly requested, owner-private normalized Activities to context derivation.
+func (r *MemoryReadRepository) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID, activityIDs []string) ([]applicationsocialcontext.ActivityForContext, error) {
+	requested := make(map[string]struct{}, len(activityIDs))
+	for _, id := range activityIDs {
+		requested[id] = struct{}{}
+	}
+
+	r.source.mu.RLock()
+	defer r.source.mu.RUnlock()
+
+	result := make([]applicationsocialcontext.ActivityForContext, 0, len(activityIDs))
+	for _, value := range r.source.activities {
+		if value.OwnerID() != ownerID || !value.IsPrivate() {
+			continue
+		}
+		id := string(value.ID())
+		if _, ok := requested[id]; !ok {
+			continue
+		}
+		result = append(result, applicationsocialcontext.ActivityForContext{
+			ID:      id,
+			OwnerID: value.OwnerID(),
+			Content: value.Content().String(),
 		})
 	}
 
