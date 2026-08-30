@@ -150,7 +150,11 @@ func TestDeterministicGeneratorRejectsNegatedOrContrastiveKeywordMatches(t *test
 
 func TestDeterministicGeneratorRejectsMarathonPreparationWithoutParticipationIntent(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	for _, raw := range []string{"開始準備放棄馬拉松訓練", "開始準備馬拉松賽事的志工物資"} {
+	for _, raw := range []string{
+		"開始準備放棄馬拉松訓練",
+		"開始準備馬拉松賽事的志工物資",
+		"開始準備馬拉松比賽的志工物資",
+	} {
 		t.Run(raw, func(t *testing.T) {
 			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: raw}}})
 			if err != nil {
@@ -185,6 +189,7 @@ func TestDeterministicGeneratorRejectsLaterReversalOfRecognizedIntent(t *testing
 		"最近開始準備馬拉松，但後來沒有準備",
 		"最近開始研究分散式系統但後來不再研究",
 		"最近開始準備馬拉松但後來沒有準備",
+		"最近開始準備馬拉松訓練但後來放棄了",
 	} {
 		t.Run(raw, func(t *testing.T) {
 			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-reversed", Content: raw}}})
@@ -230,12 +235,18 @@ func TestDeterministicGeneratorRejectsExplicitMarathonNonParticipationSuffix(t *
 
 func TestDeterministicGeneratorDoesNotBindUnrelatedReversalToRecognizedTopic(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	raw := "最近開始研究分散式系統，後來停止研究英文"
-	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
-		t.Fatalf("Generate() meaning = %q, want distributed-systems topic preserved when later reversal targets English", got.Meaning)
+	for _, raw := range []string{
+		"最近開始研究分散式系統，後來停止研究英文",
+		"最近開始研究分散式系統但後來停止研究英文",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-db", Content: raw}}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+				t.Fatalf("Generate() meaning = %q, want distributed-systems topic preserved when reversal targets English in %q", got.Meaning, raw)
+			}
+		})
 	}
 }
