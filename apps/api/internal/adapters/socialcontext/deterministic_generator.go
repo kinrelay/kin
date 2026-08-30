@@ -142,12 +142,25 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 			}
 
 			suffix := strings.TrimSpace(clause[index+len(pattern):])
-			if suffix == "" || hasAnySubstring(suffix, topicMarkers...) {
+			if suffix == "" {
+				return true
+			}
+			if hasAnySubstring(reversalObject(suffix), topicMarkers...) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func reversalObject(suffix string) string {
+	object := suffix
+	for _, boundary := range []string{"並", "且", "而", "但", "同時"} {
+		if index := strings.Index(object, boundary); index >= 0 {
+			object = object[:index]
+		}
+	}
+	return strings.TrimSpace(object)
 }
 
 func hasAnyPrefix(content string, prefixes ...string) bool {
