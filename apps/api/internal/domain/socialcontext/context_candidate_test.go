@@ -36,6 +36,28 @@ func TestPromoteContextCandidateRejectsPureSourceReplay(t *testing.T) {
 	}
 }
 
+func TestPromoteContextCandidateRejectsReplayOfAuthorizedSourceOutsideDeclaredProvenance(t *testing.T) {
+	candidate, err := NewContextCandidate("整理了一份一致性模型筆記", []string{"activity-1"})
+	if err != nil {
+		t.Fatalf("NewContextCandidate() error = %v", err)
+	}
+
+	_, err = PromoteContextCandidate(candidate, []SourceActivity{
+		{ID: "activity-1", Content: "讀完一篇關於 Raft 的文章"},
+		{ID: "activity-2", Content: "整理了一份一致性模型筆記"},
+	})
+	if err != ErrSourceReplay {
+		t.Fatalf("PromoteContextCandidate() error = %v, want %v", err, ErrSourceReplay)
+	}
+}
+
+func TestPromoteContextCandidateRejectsZeroValueCandidate(t *testing.T) {
+	_, err := PromoteContextCandidate(ContextCandidate{}, []SourceActivity{{ID: "activity-1", Content: "讀完一篇關於 Raft 的文章"}})
+	if err != ErrBlankContextMeaning {
+		t.Fatalf("PromoteContextCandidate() error = %v, want %v", err, ErrBlankContextMeaning)
+	}
+}
+
 func TestPromoteContextCandidateCreatesPrivateSocialContext(t *testing.T) {
 	candidate, err := NewContextCandidate("最近對分散式系統的可靠性與取捨特別有興趣", []string{"activity-1", "activity-2"})
 	if err != nil {
