@@ -180,3 +180,23 @@ func TestDeterministicGeneratorScopesIntentToIndividualClauses(t *testing.T) {
 		})
 	}
 }
+
+func TestDeterministicGeneratorRejectsLaterReversalOfRecognizedIntent(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, raw := range []string{
+		"最近開始研究分散式系統，但後來不再研究",
+		"最近開始準備馬拉松，但後來沒有準備",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+				{ID: "activity-reversed", Content: raw},
+			}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning != "" || len(got.Provenance) != 0 {
+				t.Fatalf("Generate() = %#v for reversed intent %q, want blank meaning and provenance", got, raw)
+			}
+		})
+	}
+}
