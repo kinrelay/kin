@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	applicationsocialcontext "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
+	appsc "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
 )
 
 func TestDeterministicGeneratorProducesDerivedMeaningAndAuthorizedProvenance(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	input := applicationsocialcontext.ContextGenerationInput{Activities: []applicationsocialcontext.ContextGenerationActivity{
+	input := appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
 		{ID: "activity-1", Content: "最近開始深入研究分散式系統設計"},
 		{ID: "activity-2", Content: "持續比較不同一致性模型的工程取捨"},
 	}}
@@ -38,13 +38,13 @@ func TestDeterministicGeneratorProducesDerivedMeaningAndAuthorizedProvenance(t *
 
 func TestDeterministicGeneratorDistinguishesDifferentSignals(t *testing.T) {
 	generator := NewDeterministicGenerator()
-	first, err := generator.Generate(context.Background(), applicationsocialcontext.ContextGenerationInput{Activities: []applicationssocialcontext.ContextGenerationActivity{
+	first, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
 		{ID: "activity-db", Content: "最近開始深入研究分散式系統設計"},
 	}})
 	if err != nil {
 		t.Fatalf("Generate(database) error = %v", err)
 	}
-	second, err := generator.Generate(context.Background(), applicationssocialcontext.ContextGenerationInput{Activities: []applicationssocialcontext.ContextGenerationActivity{
+	second, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
 		{ID: "activity-run", Content: "最近開始準備第一次全程馬拉松訓練"},
 	}})
 	if err != nil {
