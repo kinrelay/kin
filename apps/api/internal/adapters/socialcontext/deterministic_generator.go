@@ -44,36 +44,53 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 }
 
 func summarizeSignal(content string) (string, bool) {
-	normalized := strings.TrimSpace(content)
-
-	switch {
-	case hasAnyPrefix(normalized,
-		"最近開始深入研究分散式系統",
-		"開始深入研究分散式系統",
-		"持續深入研究分散式系統",
-		"最近開始研究分散式系統",
-		"開始研究分散式系統",
-		"持續研究分散式系統",
-		"最近開始比較不同一致性模型",
-		"開始比較不同一致性模型",
-		"持續比較不同一致性模型",
-		"最近開始研究一致性模型",
-		"開始研究一致性模型",
-		"持續研究一致性模型",
-	):
-		return "分散式系統的一致性模型、可靠性與工程取捨", true
-	case strings.Contains(normalized, "馬拉松") && hasAnyPrefix(normalized,
-		"最近開始準備",
-		"開始準備",
-		"持續準備",
-		"最近開始訓練",
-		"開始訓練",
-		"持續訓練",
-	):
-		return "耐力運動與長距離訓練", true
-	default:
-		return "", false
+	for _, clause := range splitSignalClauses(content) {
+		switch {
+		case hasAnyPrefix(clause,
+			"最近開始深入研究分散式系統",
+			"開始深入研究分散式系統",
+			"持續深入研究分散式系統",
+			"最近開始研究分散式系統",
+			"開始研究分散式系統",
+			"持續研究分散式系統",
+			"最近開始比較不同一致性模型",
+			"開始比較不同一致性模型",
+			"持續比較不同一致性模型",
+			"最近開始研究一致性模型",
+			"開始研究一致性模型",
+			"持續研究一致性模型",
+		):
+			return "分散式系統的一致性模型、可靠性與工程取捨", true
+		case strings.Contains(clause, "馬拉松") && hasAnyPrefix(clause,
+			"最近開始準備",
+			"開始準備",
+			"持續準備",
+			"最近開始訓練",
+			"開始訓練",
+			"持續訓練",
+		):
+			return "耐力運動與長距離訓練", true
+		}
 	}
+	return "", false
+}
+
+func splitSignalClauses(content string) []string {
+	parts := strings.FieldsFunc(content, func(r rune) bool {
+		switch r {
+		case '，', ',', '。', '.', '！', '!', '？', '?', '；', ';', '\n':
+			return true
+		default:
+			return false
+		}
+	})
+	clauses := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if clause := strings.TrimSpace(part); clause != "" {
+			clauses = append(clauses, clause)
+		}
+	}
+	return clauses
 }
 
 func hasAnyPrefix(content string, prefixes ...string) bool {
