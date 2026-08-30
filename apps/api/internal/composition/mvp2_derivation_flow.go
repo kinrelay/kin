@@ -10,7 +10,7 @@ import (
 type MVP2DerivationFlow struct {
 	Activities *activityadapter.MemoryRepository
 	Derive     applicationsocialcontext.DeriveContextCandidate
-	List       applicationssocialcontext.ListMySocialContexts
+	List       applicationsocialcontext.ListMySocialContexts
 }
 
 // NewMVP2DerivationFlow builds the smallest executable MVP 2 composition without delivery or external-provider infrastructure.
@@ -24,6 +24,6 @@ func NewMVP2DerivationFlow() MVP2DerivationFlow {
 	return MVP2DerivationFlow{
 		Activities: activities,
 		Derive:     applicationsocialcontext.NewDeriveContextCandidate(activityReader, generator, contexts),
-		List:       applicationssocialcontext.NewListMySocialContexts(contextReader),
+		List:       applicationsocialcontext.NewListMySocialContexts(contextReader),
 	}
 }
