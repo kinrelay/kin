@@ -16,10 +16,11 @@ var (
 )
 
 type ActivityForContext struct {
-	ID         string
-	OwnerID    domainidentity.ID
-	Content    string
-	OccurredAt time.Time
+	ID            string
+	OwnerID       domainidentity.ID
+	Content       string
+	OccurredAt    time.Time
+	ContributedAt time.Time
 }
 
 type ContextActivityReader interface {
@@ -104,14 +105,17 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	}
 	// Reversal reconciliation represents current state within the requested
 	// derivation batch, so derive from occurrence chronology rather than
-	// caller-supplied Activity ID order. Persisted cross-command current-state
-	// retirement is a separate MVP 2 lifecycle capability tracked by #55.
+	// caller-supplied Activity ID order. ContributedAt is the explicit secondary
+	// chronology when two Activities share the same OccurredAt.
 	sort.SliceStable(activities, func(i, j int) bool {
-		left, right := activities[i].OccurredAt, activities[j].OccurredAt
-		if left.IsZero() || right.IsZero() || left.Equal(right) {
-			return false
+		left, right := activities[i], activities[j]
+		if !left.OccurredAt.IsZero() && !right.OccurredAt.IsZero() && !left.OccurredAt.Equal(right.OccurredAt) {
+			return left.OccurredAt.Before(right.OccurredAt)
 		}
-		return left.Before(right)
+		if !left.ContributedAt.IsZero() && !right.ContributedAt.IsZero() && !left.ContributedAt.Equal(right.ContributedAt) {
+			return left.ContributedAt.Before(right.ContributedAt)
+		}
+		return false
 	})
 
 	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
