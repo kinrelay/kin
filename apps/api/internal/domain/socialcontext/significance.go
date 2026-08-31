@@ -97,6 +97,10 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 	if currentIndex <= 0 || len(decisions) == 0 || decisions[len(decisions)-1].Status != SignificanceSuppressed {
 		return false
 	}
+	previousContent := normalizeSignificanceContent(signals[currentIndex-1].Content)
+	if !isSupportedSignificanceAntecedent(previousContent) {
+		return true
+	}
 	for index := currentIndex - 2; index >= 0; index-- {
 		if decisions[index].Status != SignificanceEligible {
 			continue
