@@ -171,13 +171,14 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 	batchState := append([]recognizedSignal(nil), recognized...)
 	localTopics := make([]string, 0, 2)
 	boundTopics := make([]string, 0, 2)
+	localUnsupportedAntecedent := false
 	for _, clause := range clauses {
 		if isObjectlessAbandonmentClause(clause) {
 			var topic string
 			if len(localTopics) > 0 {
 				topic = localTopics[len(localTopics)-1]
 				localTopics = removeTopic(localTopics, topic)
-			} else if len(batchState) > 0 {
+			} else if !localUnsupportedAntecedent && len(batchState) > 0 {
 				topic = batchState[len(batchState)-1].topic
 			}
 			if topic != "" {
@@ -191,17 +192,24 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 		// Explicit reversals retire their topic before a later bare abandonment
 		// chooses the nearest remaining antecedent; the bare abandonment itself is
 		// handled above because its target is context-dependent.
-		if hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals) {
+		distributedReversed := hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals)
+		marathonReversed := hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals)
+		if distributedReversed {
 			localTopics = removeTopic(localTopics, distributedSystemsTopic)
 			batchState, _ = removeRecognizedTopic(batchState, distributedSystemsTopic)
 		}
-		if hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals) {
+		if marathonReversed {
 			localTopics = removeTopic(localTopics, marathonTopic)
 			batchState, _ = removeRecognizedTopic(batchState, marathonTopic)
 		}
 
-		for _, topic := range summarizeSignals(clause) {
+		clauseTopics := summarizeSignals(clause)
+		if len(clauseTopics) == 0 && !distributedReversed && !marathonReversed {
+			localUnsupportedAntecedent = true
+		}
+		for _, topic := range clauseTopics {
 			localTopics = append(localTopics, topic)
+			localUnsupportedAntecedent = false
 		}
 	}
 	return boundTopics
@@ -274,12 +282,9 @@ func isAffirmativeMarathonParticipationClause(clause string) bool {
 }
 
 func trimMarathonTrailingDescription(target string) string {
-	for _, boundary := range []string{"但目前", "但現在"} {
+	for _, boundary := range []string{"但最近", "但目前", "但現在"} {
 		if index := strings.Index(target, boundary); index >= 0 {
-			remainder := strings.TrimSpace(target[index+len(boundary):])
-			if strings.HasPrefix(remainder, "沒有受傷") {
-				return strings.TrimSpace(target[:index])
-			}
+			return strings.TrimSpace(target[:index])
 		}
 	}
 	return target
@@ -326,7 +331,7 @@ func splitCompoundActions(clause string) []string {
 func nextActionBoundary(content string) (int, int) {
 	bestIndex := -1
 	bestLength := 0
-	for _, boundary := range []string{"但是", "之後", "然後", "以及", "並且", "同時", "並", "且", "而", "但", "後"} {
+	for _, boundary := range []string{"但是", "後來", "之後", "然後", "以及", "並且", "同時", "並", "且", "而", "但", "後"} {
 		searchFrom := 0
 		for searchFrom < len(content) {
 			relative := strings.Index(content[searchFrom:], boundary)
@@ -335,7 +340,7 @@ func nextActionBoundary(content string) (int, int) {
 			}
 			index := searchFrom + relative
 			remainder := strings.TrimSpace(content[index+len(boundary):])
-			if startsSupportedAction(remainder) && (bestIndex < 0 || index < bestIndex) {
+			if startsSupportedAction(remainder) && (bestIndex < 0 || index < bestIndex || (index == bestIndex && len(boundary) > bestLength)) {
 				bestIndex = index
 				bestLength = len(boundary)
 			}
@@ -459,6 +464,9 @@ func isDistributedSystemsTopicObject(object string) bool {
 }
 
 func isDistributedSystemsRoleDutyObject(object string) bool {
+	if strings.HasSuffix(object, "如何工作") {
+		return false
+	}
 	return hasAnySubstring(object, "志工", "助教") || strings.HasSuffix(object, "工作")
 }
 
@@ -536,31 +544,4 @@ func normalizeObjectlessAbandonmentClause(value string) string {
 func isStandaloneObjectlessAbandonment(content string) bool {
 	clauses := splitSignalClauses(content)
 	return len(clauses) == 1 && isObjectlessAbandonmentClause(clauses[0])
-}
-
-func isObjectlessReversal(object string) bool {
-	switch strings.TrimSpace(object) {
-	case "", "了":
-		return true
-	default:
-		return false
-	}
-}
-
-func hasAnyPrefix(value string, prefixes ...string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(value, prefix) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasAnySubstring(value string, needles ...string) bool {
-	for _, needle := range needles {
-		if strings.Contains(value, needle) {
-			return true
-		}
-	}
-	return false
 }
