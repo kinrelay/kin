@@ -13,3 +13,15 @@ func TestEvaluateSignificancePreservesRepeatedObjectlessAbandonments(t *testing.
 	assertDuplicateDecisionByID(t, decisions, "activity-stop-distributed", SignificanceEligible, SuppressionNone)
 	assertDuplicateDecisionByID(t, decisions, "activity-stop-marathon", SignificanceEligible, SuppressionNone)
 }
+
+func TestDistributedSystemsSignificanceRoleDutyMarkerWinsOverHowItWorksSuffix(t *testing.T) {
+	if !isDistributedSystemsSignificanceRoleDutyObject("分散式系統志工如何工作") {
+		t.Fatal("role-duty marker 志工 must remain excluded even when object ends with 如何工作")
+	}
+	if !isDistributedSystemsSignificanceRoleDutyObject("分散式系統助教如何工作") {
+		t.Fatal("role-duty marker 助教 must remain excluded even when object ends with 如何工作")
+	}
+	if isDistributedSystemsSignificanceRoleDutyObject("分散式系統如何工作") {
+		t.Fatal("pure technical predicate 如何工作 must remain eligible")
+	}
+}
