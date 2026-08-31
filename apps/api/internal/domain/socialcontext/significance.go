@@ -103,14 +103,41 @@ func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 }
 
 func isExplicitReversalSignal(content string) bool {
-	for _, marker := range []string{
-		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究",
-		"不再研究", "停止研究", "不想研究", "沒有研究",
-		"不再比較", "停止比較",
+	content = strings.TrimSpace(content)
+	if isObjectlessAbandonmentSignal(content) {
+		return true
+	}
+	if strings.Contains(content, "不會放棄") || strings.Contains(content, "不想放棄") {
+		return false
+	}
+
+	if hasAnySignificanceMarker(content, "分散式系統", "一致性模型") && hasAnySignificanceMarker(content,
+		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究", "放棄深入研究",
+		"不再研究", "停止研究", "不想研究", "沒有研究", "放棄研究",
+		"不再比較", "停止比較", "放棄了", "放棄",
+	) {
+		return true
+	}
+	if strings.Contains(content, "馬拉松") && hasAnySignificanceMarker(content,
 		"不再準備", "停止準備", "沒有準備",
 		"不再訓練", "停止訓練", "沒有訓練",
-		"不參加", "不參賽", "放棄",
-	} {
+		"取消參賽", "取消參加", "不參加", "不參賽", "放棄",
+	) {
+		return true
+	}
+	return false
+}
+
+func isObjectlessAbandonmentSignal(content string) bool {
+	value := strings.TrimSpace(content)
+	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
+	}
+	return value == "放棄" || value == "放棄了"
+}
+
+func hasAnySignificanceMarker(content string, markers ...string) bool {
+	for _, marker := range markers {
 		if strings.Contains(content, marker) {
 			return true
 		}
