@@ -42,20 +42,24 @@ func NewDeterministicGenerator() DeterministicGenerator {
 
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
 	recognized := make([]recognizedSignal, 0, len(input.Activities))
+	unsupportedAntecedentBarrier := false
 	for _, activity := range input.Activities {
 		// Input order is chronological (oldest to newest). A reversal removes only
 		// previously recognized state in this requested derivation batch, allowing
 		// a genuinely later affirmative signal to establish the topic again.
-		for _, topic := range compoundObjectlessAbandonmentTopics(activity.Content, recognized) {
+		boundAbandonments := compoundObjectlessAbandonmentTopics(activity.Content, recognized)
+		for _, topic := range boundAbandonments {
 			recognized, _ = removeRecognizedTopic(recognized, topic)
 		}
 
 		reversed := reversedTopics(activity.Content)
-		if isStandaloneObjectlessAbandonment(activity.Content) && len(reversed) > 1 {
+		standaloneAbandonment := isStandaloneObjectlessAbandonment(activity.Content)
+		if standaloneAbandonment && len(reversed) > 1 {
 			// A bare "放棄了" is context-dependent. Bind it only to the nearest
 			// recognized antecedent rather than retracting every topic whose grammar
-			// happens to support objectless abandonment.
-			if len(recognized) > 0 {
+			// happens to support objectless abandonment. An eligible but unsupported
+			// Activity is still an antecedent barrier and must not be skipped.
+			if !unsupportedAntecedentBarrier && len(recognized) > 0 {
 				nearestTopic := recognized[len(recognized)-1].topic
 				if _, applies := reversed[nearestTopic]; applies {
 					recognized, _ = removeRecognizedTopic(recognized, nearestTopic)
@@ -68,12 +72,21 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		}
 
 		seenInActivity := make(map[string]struct{}, 2)
+		recognizedInActivity := false
 		for _, topic := range summarizeSignals(activity.Content) {
 			if _, seen := seenInActivity[topic]; seen {
 				continue
 			}
 			seenInActivity[topic] = struct{}{}
 			recognized = append(recognized, recognizedSignal{activityID: activity.ID, topic: topic})
+			recognizedInActivity = true
+		}
+
+		switch {
+		case recognizedInActivity, len(reversed) > 0, len(boundAbandonments) > 0, standaloneAbandonment:
+			unsupportedAntecedentBarrier = false
+		case strings.TrimSpace(activity.Content) != "":
+			unsupportedAntecedentBarrier = true
 		}
 	}
 	if len(recognized) == 0 {
