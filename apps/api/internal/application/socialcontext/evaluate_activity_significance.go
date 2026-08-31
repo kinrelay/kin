@@ -3,6 +3,8 @@ package socialcontext
 import (
 	"context"
 	"errors"
+	"sort"
+	"time"
 
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
@@ -15,9 +17,10 @@ var (
 
 // ActivityForSignificance is the minimal normalized, owner-private Activity projection required by this use case.
 type ActivityForSignificance struct {
-	ID      string
-	OwnerID domainidentity.ID
-	Content string
+	ID         string
+	OwnerID    domainidentity.ID
+	Content    string
+	OccurredAt time.Time
 }
 
 // ActivitySignificanceReader exposes only the requested owner-private normalized Activity batch needed for significance evaluation.
@@ -60,11 +63,24 @@ func (uc EvaluateActivitySignificance) Execute(ctx context.Context, query Evalua
 		return []domainsocialcontext.SignificanceDecision{}, nil
 	}
 
-	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
 	for _, activity := range activities {
 		if activity.OwnerID != requesterID {
 			return nil, ErrActivityOwnerMismatch
 		}
+	}
+	// Duplicate significance is a chronology-sensitive policy: when equivalent
+	// signals repeat, the newest occurrence is the representative. Do not trust
+	// adapter/request order to encode that meaning.
+	sort.SliceStable(activities, func(i, j int) bool {
+		left, right := activities[i].OccurredAt, activities[j].OccurredAt
+		if left.IsZero() || right.IsZero() || left.Equal(right) {
+			return false
+		}
+		return left.Before(right)
+	})
+
+	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
+	for _, activity := range activities {
 		signals = append(signals, domainsocialcontext.SignificanceSignal{
 			ActivityID: activity.ID,
 			Content:    activity.Content,
