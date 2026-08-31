@@ -127,9 +127,10 @@ func summarizeSignal(content string) (string, bool) {
 func summarizeSignals(content string) []string {
 	clauses := splitSignalClauses(content)
 	topics := make([]string, 0, 2)
+	unsupportedAntecedentBarrier := false
 	for _, clause := range clauses {
 		if isObjectlessAbandonmentClause(clause) {
-			if len(topics) > 0 {
+			if !unsupportedAntecedentBarrier && len(topics) > 0 {
 				nearestTopic := topics[len(topics)-1]
 				topics = removeTopic(topics, nearestTopic)
 			}
@@ -148,6 +149,7 @@ func summarizeSignals(content string) []string {
 			topics = removeTopic(topics, marathonTopic)
 		}
 
+		recognizedClause := false
 		switch {
 		case hasAnyPrefix(clause,
 			"最近開始深入研究分散式系統",
@@ -165,11 +167,20 @@ func summarizeSignals(content string) []string {
 		) && isDistributedSystemsTopicObject(clause):
 			if !distributedReversed {
 				topics = append(topics, distributedSystemsTopic)
+				recognizedClause = true
 			}
 		case isAffirmativeMarathonParticipationClause(clause):
 			if !marathonReversed {
 				topics = append(topics, marathonTopic)
+				recognizedClause = true
 			}
+		}
+
+		switch {
+		case recognizedClause, distributedReversed, marathonReversed:
+			unsupportedAntecedentBarrier = false
+		case strings.TrimSpace(clause) != "":
+			unsupportedAntecedentBarrier = true
 		}
 	}
 	return topics
