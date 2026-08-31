@@ -104,8 +104,10 @@ func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 
 func isExplicitReversalSignal(content string) bool {
 	content = strings.TrimSpace(content)
-	if isObjectlessAbandonmentSignal(content) {
-		return true
+	for _, clause := range splitSignificanceClauses(content) {
+		if isObjectlessAbandonmentSignal(clause) {
+			return true
+		}
 	}
 
 	if hasTopicBoundSignificanceReversal(content, []string{"分散式系統", "一致性模型"},
@@ -177,9 +179,14 @@ func isMarathonSignificanceParticipationObject(object string) bool {
 	if object == "馬拉松" {
 		return true
 	}
-	return strings.HasSuffix(object, "馬拉松訓練") ||
-		strings.HasSuffix(object, "馬拉松參賽") ||
-		strings.HasSuffix(object, "馬拉松比賽")
+	for _, suffix := range []string{"馬拉松訓練", "馬拉松參賽", "馬拉松比賽"} {
+		if !strings.HasSuffix(object, suffix) {
+			continue
+		}
+		modifier := strings.TrimSpace(strings.TrimSuffix(object, suffix))
+		return modifier == "" || modifier == "第一次全程"
+	}
+	return false
 }
 
 func splitSignificanceClauses(content string) []string {
