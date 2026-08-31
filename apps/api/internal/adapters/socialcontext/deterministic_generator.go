@@ -172,6 +172,18 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 	localTopics := make([]string, 0, 2)
 	boundTopics := make([]string, 0, 2)
 	for _, clause := range clauses {
+		// Keep the simulated clause-time state aligned with Generate/summarizeSignals.
+		// An explicit reversal must retire its topic before a following bare
+		// abandonment chooses the nearest remaining antecedent.
+		if hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals) {
+			localTopics = removeTopic(localTopics, distributedSystemsTopic)
+			batchState, _ = removeRecognizedTopic(batchState, distributedSystemsTopic)
+		}
+		if hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals) {
+			localTopics = removeTopic(localTopics, marathonTopic)
+			batchState, _ = removeRecognizedTopic(batchState, marathonTopic)
+		}
+
 		if isObjectlessAbandonmentClause(clause) {
 			var topic string
 			if len(localTopics) > 0 {
@@ -337,7 +349,8 @@ func startsSupportedAction(content string) bool {
 		"最近開始", "開始", "持續",
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
 		"不再", "停止", "沒有", "不想", "放棄", "取消參賽", "取消參加", "不參加", "不參賽",
-		"不會取消參賽", "不會取消參加", "沒有取消參賽", "沒有取消參加", "從未取消參賽", "從未取消參加",
+		"不會取消參賽", "不會取消參加", "不願取消參賽", "不願取消參加",
+		"沒有取消參賽", "沒有取消參加", "從未取消參賽", "從未取消參加",
 	)
 }
 
