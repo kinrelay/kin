@@ -98,7 +98,7 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 		return false
 	}
 	previous := decisions[len(decisions)-1]
-	if previous.Status != SignificanceSuppressed || previous.Reason == SuppressionDuplicate {
+	if previous.Status != SignificanceSuppressed {
 		return false
 	}
 	return !isSupportedSignificanceAntecedent(normalizeSignificanceContent(signals[currentIndex-1].Content))
@@ -115,11 +115,13 @@ func isSupportedSignificanceAntecedent(content string) bool {
 			return true
 		}
 	}
-	if strings.Contains(content, "馬拉松") {
-		for _, prefix := range []string{"最近開始準備", "開始準備", "持續準備", "最近開始訓練", "開始訓練", "持續訓練", "完成第一次全程"} {
-			if strings.HasPrefix(content, prefix) {
-				return true
-			}
+	for _, prefix := range []string{"最近開始準備", "開始準備", "持續準備", "最近開始訓練", "開始訓練", "持續訓練", "完成第一次全程"} {
+		if !strings.HasPrefix(content, prefix) {
+			continue
+		}
+		target := strings.TrimSpace(strings.TrimPrefix(content, prefix))
+		if isMarathonSignificanceParticipationObject(target) {
+			return true
 		}
 	}
 	return false
@@ -225,7 +227,7 @@ func significanceReversalObjectBeforeNextAction(object string) string {
 
 func startsSignificanceAction(value string) bool {
 	for _, prefix := range []string{
-		"最近開始", "開始", "持續", "停止", "放棄", "取消", "不再", "不想", "不願", "沒有", "不參加", "不參賽", "研究", "準備", "訓練", "工作",
+		"最近開始", "開始", "持續", "停止", "放棄", "取消", "不再", "不想", "不願", "沒有", "不會", "從未", "不參加", "不參賽", "研究", "準備", "訓練", "工作",
 	} {
 		if strings.HasPrefix(value, prefix) {
 			return true
