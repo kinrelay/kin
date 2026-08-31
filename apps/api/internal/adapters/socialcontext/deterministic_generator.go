@@ -551,5 +551,36 @@ func normalizeObjectlessAbandonmentClause(value string) string {
 
 func isStandaloneObjectlessAbandonment(content string) bool {
 	clauses := splitSignalClauses(content)
-	return len(clauses) == 1 && isObjectlessAbandonmentClause(clauses[0])
+	if len(clauses) != 1 {
+		return false
+	}
+	clause := clauses[0]
+	if isObjectlessAbandonmentClause(clause) {
+		return true
+	}
+
+	for _, pattern := range []string{"放棄了", "放棄"} {
+		searchFrom := 0
+		for searchFrom < len(clause) {
+			relativeIndex := strings.Index(clause[searchFrom:], pattern)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			if isNegatedReversalOccurrence(clause[:index]) {
+				searchFrom = index + len(pattern)
+				continue
+			}
+			if normalizeObjectlessAbandonmentClause(clause[:index]) != "" {
+				searchFrom = index + len(pattern)
+				continue
+			}
+			object := reversalObject(strings.TrimSpace(clause[index+len(pattern):]))
+			if isObjectlessReversal(object) {
+				return true
+			}
+			searchFrom = index + len(pattern)
+		}
+	}
+	return false
 }
