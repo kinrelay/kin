@@ -114,7 +114,7 @@ func summarizeSignal(content string) (string, bool) {
 func summarizeSignals(content string) []string {
 	clauses := splitSignalClauses(content)
 	topics := make([]string, 0, 2)
-	for i, clause := range clauses {
+	for _, clause := range clauses {
 		if isObjectlessAbandonmentClause(clause) {
 			if len(topics) > 0 {
 				nearestTopic := topics[len(topics)-1]
@@ -123,9 +123,18 @@ func summarizeSignals(content string) []string {
 			continue
 		}
 
-		// Bare abandonment is context-dependent and is reconciled sequentially
-		// above. It must not blanket-suppress every earlier affirmative topic.
-		reversalScope := withoutObjectlessAbandonmentClauses(clauses[i:])
+		// Reconcile each clause against the topic state that exists at that point
+		// in chronology. Future reversals must not erase an antecedent before an
+		// intervening objectless abandonment has had a chance to bind to it.
+		distributedReversed := hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals)
+		marathonReversed := hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals)
+		if distributedReversed {
+			topics = removeTopic(topics, distributedSystemsTopic)
+		}
+		if marathonReversed {
+			topics = removeTopic(topics, marathonTopic)
+		}
+
 		switch {
 		case hasAnyPrefix(clause,
 			"最近開始深入研究分散式系統",
@@ -141,15 +150,13 @@ func summarizeSignals(content string) []string {
 			"開始研究一致性模型",
 			"持續研究一致性模型",
 		):
-			if hasTopicReversal(reversalScope, distributedSystemsMarkers, distributedSystemsReversals) {
-				continue
+			if !distributedReversed {
+				topics = append(topics, distributedSystemsTopic)
 			}
-			topics = append(topics, distributedSystemsTopic)
 		case isAffirmativeMarathonParticipationClause(clause):
-			if hasTopicReversal(reversalScope, marathonMarkers, marathonReversals) {
-				continue
+			if !marathonReversed {
+				topics = append(topics, marathonTopic)
 			}
-			topics = append(topics, marathonTopic)
 		}
 	}
 	return topics
@@ -230,7 +237,7 @@ func removeTopic(topics []string, topic string) []string {
 }
 
 func isAffirmativeMarathonParticipationClause(clause string) bool {
-	if strings.Contains(clause, "不參加") || strings.Contains(clause, "不參賽") || strings.Contains(clause, "取消參賽") || strings.Contains(clause, "取消參加") {
+	if hasAffirmativeReversalOccurrence(clause, "不參加", "不參賽", "取消參賽", "取消參加") {
 		return false
 	}
 	for _, prefix := range []string{
@@ -364,9 +371,27 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 	return false
 }
 
+func hasAffirmativeReversalOccurrence(content string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		searchFrom := 0
+		for searchFrom < len(content) {
+			relativeIndex := strings.Index(content[searchFrom:], pattern)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			if !isNegatedReversalOccurrence(content[:index]) {
+				return true
+			}
+			searchFrom = index + len(pattern)
+		}
+	}
+	return false
+}
+
 func isNegatedReversalOccurrence(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
-	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願")
+	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未")
 }
 
 func reversalObject(suffix string) string {
