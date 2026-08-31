@@ -197,10 +197,13 @@ func isDistributedSystemsSignificanceTopicObject(object string) bool {
 }
 
 func isDistributedSystemsSignificanceRoleDutyObject(object string) bool {
+	if hasAnySignificanceMarker(object, "志工", "助教") {
+		return true
+	}
 	if strings.HasSuffix(object, "如何工作") {
 		return false
 	}
-	return hasAnySignificanceMarker(object, "志工", "助教") || strings.HasSuffix(object, "工作")
+	return strings.HasSuffix(object, "工作")
 }
 
 func isMarathonSignificanceParticipationObject(object string) bool {
