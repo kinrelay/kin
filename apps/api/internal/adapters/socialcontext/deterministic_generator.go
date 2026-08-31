@@ -326,7 +326,7 @@ func splitCompoundActions(clause string) []string {
 func nextActionBoundary(content string) (int, int) {
 	bestIndex := -1
 	bestLength := 0
-	for _, boundary := range []string{"以及", "並且", "同時", "並", "且", "而", "但"} {
+	for _, boundary := range []string{"但是", "以及", "並且", "同時", "並", "且", "而", "但"} {
 		searchFrom := 0
 		for searchFrom < len(content) {
 			relative := strings.Index(content[searchFrom:], boundary)
@@ -444,7 +444,22 @@ func reversalObjectTargetsTopic(object string, topicMarkers []string) bool {
 	if isMarathonTopicMarkerSet(topicMarkers) {
 		return isMarathonParticipationObject(object)
 	}
+	if isDistributedSystemsTopicMarkerSet(topicMarkers) {
+		return isDistributedSystemsTopicObject(object)
+	}
 	return hasAnySubstring(object, topicMarkers...)
+}
+
+func isDistributedSystemsTopicObject(object string) bool {
+	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
+	if hasAnySubstring(object, "志工", "助教", "工作") {
+		return false
+	}
+	return hasAnySubstring(object, distributedSystemsMarkers...)
+}
+
+func isDistributedSystemsTopicMarkerSet(topicMarkers []string) bool {
+	return len(topicMarkers) == len(distributedSystemsMarkers) && topicMarkers[0] == "分散式系統" && topicMarkers[1] == "一致性模型"
 }
 
 func isMarathonParticipationObject(object string) bool {
@@ -457,9 +472,28 @@ func isMarathonParticipationObject(object string) bool {
 			continue
 		}
 		modifier := strings.TrimSpace(strings.TrimSuffix(object, suffix))
-		return modifier == "" || modifier == "第一次全程"
+		return isSupportedMarathonModifier(modifier)
 	}
 	return false
+}
+
+func isSupportedMarathonModifier(modifier string) bool {
+	if modifier == "" {
+		return true
+	}
+	if !strings.HasPrefix(modifier, "第") || !strings.HasSuffix(modifier, "次全程") {
+		return false
+	}
+	ordinal := strings.TrimSuffix(strings.TrimPrefix(modifier, "第"), "次全程")
+	if ordinal == "" {
+		return false
+	}
+	for _, r := range ordinal {
+		if !strings.ContainsRune("零〇一二三四五六七八九十百千0123456789", r) {
+			return false
+		}
+	}
+	return true
 }
 
 func isMarathonTopicMarkerSet(topicMarkers []string) bool {
@@ -499,18 +533,18 @@ func isObjectlessReversal(object string) bool {
 	}
 }
 
-func hasAnyPrefix(content string, prefixes ...string) bool {
+func hasAnyPrefix(value string, prefixes ...string) bool {
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(content, prefix) {
+		if strings.HasPrefix(value, prefix) {
 			return true
 		}
 	}
 	return false
 }
 
-func hasAnySubstring(content string, values ...string) bool {
-	for _, value := range values {
-		if strings.Contains(content, value) {
+func hasAnySubstring(value string, needles ...string) bool {
+	for _, needle := range needles {
+		if strings.Contains(value, needle) {
 			return true
 		}
 	}
