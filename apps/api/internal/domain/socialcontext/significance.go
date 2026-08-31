@@ -71,7 +71,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
-		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, signals, index) {
+		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, index) && !hasIndependentSupportedSignificanceClause(content) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
 			decisions = append(decisions, decision)
@@ -93,15 +93,23 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	return decisions
 }
 
-func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []SignificanceSignal, currentIndex int) bool {
+func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, currentIndex int) bool {
 	if currentIndex <= 0 || len(decisions) == 0 {
 		return false
 	}
-	previous := decisions[len(decisions)-1]
-	if previous.Status != SignificanceSuppressed {
-		return false
+	return decisions[len(decisions)-1].Status == SignificanceSuppressed
+}
+
+func hasIndependentSupportedSignificanceClause(content string) bool {
+	for _, clause := range splitSignificanceClauses(content) {
+		if isObjectlessAbandonmentSignal(clause) {
+			continue
+		}
+		if isSupportedSignificanceAntecedent(clause) || isExplicitReversalSignal(clause) {
+			return true
+		}
 	}
-	return !isSupportedSignificanceAntecedent(normalizeSignificanceContent(signals[currentIndex-1].Content))
+	return false
 }
 
 func isSupportedSignificanceAntecedent(content string) bool {
