@@ -469,10 +469,13 @@ func isDistributedSystemsTopicObject(object string) bool {
 }
 
 func isDistributedSystemsRoleDutyObject(object string) bool {
+	if hasAnySubstring(object, "志工", "助教") {
+		return true
+	}
 	if strings.HasSuffix(object, "如何工作") {
 		return false
 	}
-	return hasAnySubstring(object, "志工", "助教") || strings.HasSuffix(object, "工作")
+	return strings.HasSuffix(object, "工作")
 }
 
 func isDistributedSystemsTopicMarkerSet(topicMarkers []string) bool {
