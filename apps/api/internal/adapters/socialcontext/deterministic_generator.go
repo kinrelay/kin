@@ -23,7 +23,7 @@ var (
 	marathonMarkers = []string{"馬拉松"}
 	marathonReversals = []string{
 		"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練",
-		"取消參賽", "取消參加", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽",
+		"取消參賽", "取消參加", "放棄了", "放棄", "不參加", "不參賽",
 	}
 )
 
@@ -46,6 +46,10 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		// Input order is chronological (oldest to newest). A reversal removes only
 		// previously recognized state in this requested derivation batch, allowing
 		// a genuinely later affirmative signal to establish the topic again.
+		if topic := compoundObjectlessAbandonmentTopic(activity.Content); topic != "" {
+			recognized, _ = removeRecognizedTopic(recognized, topic)
+		}
+
 		reversed := reversedTopics(activity.Content)
 		if isStandaloneObjectlessAbandonment(activity.Content) && len(reversed) > 1 {
 			// A bare "放棄了" is context-dependent. Bind it only to the nearest
@@ -151,12 +155,29 @@ func summarizeSignals(content string) []string {
 	return topics
 }
 
+func compoundObjectlessAbandonmentTopic(content string) string {
+	clauses := splitSignalClauses(content)
+	if len(clauses) < 2 {
+		return ""
+	}
+	for i, clause := range clauses {
+		if i == 0 || !isObjectlessAbandonmentClause(clause) {
+			continue
+		}
+		precedingTopics := summarizeSignals(strings.Join(clauses[:i], "，"))
+		if len(precedingTopics) > 0 {
+			return precedingTopics[len(precedingTopics)-1]
+		}
+	}
+	return ""
+}
+
 func reversedTopics(content string) map[string]struct{} {
 	clauses := splitSignalClauses(content)
 	// Within compound content, a bare abandonment is resolved against the
-	// nearest antecedent by summarizeSignals. Do not treat it as an explicit
-	// reversal of every topic. Standalone abandonment remains cross-Activity
-	// context-dependent and is handled by Generate.
+	// nearest antecedent by summarizeSignals/Generate. Do not treat it as an
+	// explicit reversal of every topic. Standalone abandonment remains
+	// cross-Activity context-dependent and is handled by Generate.
 	if len(clauses) > 1 {
 		clauses = withoutObjectlessAbandonmentClauses(clauses)
 	}
@@ -316,6 +337,10 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 					break
 				}
 				index := searchFrom + relativeIndex
+				if isNegatedAbandonmentOccurrence(clause[:index], pattern) {
+					searchFrom = index + len(pattern)
+					continue
+				}
 				suffix := strings.TrimSpace(clause[index+len(pattern):])
 				object := reversalObject(suffix)
 				if isObjectlessReversal(object) {
@@ -331,6 +356,14 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 		}
 	}
 	return false
+}
+
+func isNegatedAbandonmentOccurrence(prefix, pattern string) bool {
+	if !strings.Contains(pattern, "放棄") {
+		return false
+	}
+	prefix = strings.TrimSpace(prefix)
+	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願")
 }
 
 func reversalObject(suffix string) string {
@@ -352,10 +385,13 @@ func reversalPreposedObject(prefix string) string {
 func reversalObjectTargetsTopic(object string, topicMarkers []string) bool {
 	object = strings.TrimSpace(object)
 	if isMarathonTopicMarkerSet(topicMarkers) {
-		if object == "馬拉松" || object == "馬拉松比賽" {
-			return true
+		if !strings.Contains(object, "馬拉松") {
+			return false
 		}
-		return strings.Contains(object, "馬拉松訓練") || strings.Contains(object, "馬拉松參賽")
+		if hasAnySubstring(object, "志工", "物資", "攝影", "工作") {
+			return false
+		}
+		return object == "馬拉松" || strings.Contains(object, "馬拉松訓練") || strings.Contains(object, "馬拉松參賽") || strings.Contains(object, "馬拉松比賽")
 	}
 	return hasAnySubstring(object, topicMarkers...)
 }
