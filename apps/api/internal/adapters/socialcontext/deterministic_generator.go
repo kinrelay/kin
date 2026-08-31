@@ -43,8 +43,21 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		// Input order is chronological (oldest to newest). A reversal removes only
 		// previously recognized state in this requested derivation batch, allowing
 		// a genuinely later affirmative signal to establish the topic again.
-		for topic := range reversedTopics(activity.Content) {
-			recognized, _ = removeRecognizedTopic(recognized, topic)
+		reversed := reversedTopics(activity.Content)
+		if isStandaloneObjectlessAbandonment(activity.Content) && len(reversed) > 1 {
+			// A bare "放棄了" is context-dependent. Bind it only to the nearest
+			// recognized antecedent rather than retracting every topic whose grammar
+			// happens to support objectless abandonment.
+			if len(recognized) > 0 {
+				nearestTopic := recognized[len(recognized)-1].topic
+				if _, applies := reversed[nearestTopic]; applies {
+					recognized, _ = removeRecognizedTopic(recognized, nearestTopic)
+				}
+			}
+		} else {
+			for topic := range reversed {
+				recognized, _ = removeRecognizedTopic(recognized, topic)
+			}
 		}
 
 		seenInActivity := make(map[string]struct{}, 2)
@@ -77,7 +90,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	}
 	sort.Strings(topics)
 
-	return applicationsocialcontext.GeneratedContext{
+	return applicationssocialcontext.GeneratedContext{
 		Meaning:    "近期關注" + strings.Join(topics, "；"),
 		Provenance: provenance,
 	}, nil
@@ -165,6 +178,7 @@ func isAffirmativeMarathonParticipationClause(clause string) bool {
 			continue
 		}
 		target := strings.TrimSpace(strings.TrimPrefix(clause, prefix))
+		target = trimMarathonTrailingDescription(target)
 		for _, participationTarget := range []string{
 			"馬拉松",
 			"第一次全程馬拉松訓練",
@@ -179,6 +193,15 @@ func isAffirmativeMarathonParticipationClause(clause string) bool {
 		}
 	}
 	return false
+}
+
+func trimMarathonTrailingDescription(target string) string {
+	for _, boundary := range []string{"但目前", "但現在"} {
+		if index := strings.Index(target, boundary); index >= 0 {
+			return strings.TrimSpace(target[:index])
+		}
+	}
+	return target
 }
 
 func splitSignalClauses(content string) []string {
@@ -263,7 +286,7 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 				object := reversalObject(suffix)
 				if isObjectlessReversal(object) {
 					preposedObject := reversalPreposedObject(clause[:index])
-					if preposedObject == "" || hasAnySubstring(preposedObject, topicMarkers...) {
+					if preposedObject == "" || preposedObjectTargetsTopic(preposedObject, topicMarkers) {
 						return true
 					}
 				} else if hasAnySubstring(object, topicMarkers...) {
@@ -290,6 +313,39 @@ func reversalPreposedObject(prefix string) string {
 	}
 	prefix = strings.TrimSpace(strings.TrimSuffix(prefix, "我"))
 	return prefix
+}
+
+func preposedObjectTargetsTopic(object string, topicMarkers []string) bool {
+	if isMarathonTopicMarkerSet(topicMarkers) {
+		if !strings.Contains(object, "馬拉松") {
+			return false
+		}
+		// A marathon mention can describe volunteer/logistics work rather than the
+		// owner's own participation. Keep reversal binding aligned with the
+		// affirmative participation boundary instead of treating any marker hit as
+		// an endurance-state reversal.
+		if strings.Contains(object, "志工") || strings.Contains(object, "物資") {
+			return false
+		}
+		return object == "馬拉松" || strings.Contains(object, "馬拉松訓練") || strings.Contains(object, "馬拉松參賽") || strings.Contains(object, "馬拉松比賽")
+	}
+	return hasAnySubstring(object, topicMarkers...)
+}
+
+func isMarathonTopicMarkerSet(topicMarkers []string) bool {
+	return len(topicMarkers) == 1 && topicMarkers[0] == "馬拉松"
+}
+
+func isStandaloneObjectlessAbandonment(content string) bool {
+	clauses := splitSignalClauses(content)
+	if len(clauses) != 1 {
+		return false
+	}
+	value := strings.TrimSpace(clauses[0])
+	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
+	}
+	return value == "放棄" || value == "放棄了"
 }
 
 func isObjectlessReversal(object string) bool {
