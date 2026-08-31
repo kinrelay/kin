@@ -183,10 +183,14 @@ func isDistributedSystemsSignificanceMarkerSet(markers []string) bool {
 
 func isDistributedSystemsSignificanceTopicObject(object string) bool {
 	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
-	if hasAnySignificanceMarker(object, "志工", "助教", "工作") {
+	if isDistributedSystemsSignificanceRoleDutyObject(object) {
 		return false
 	}
 	return hasAnySignificanceMarker(object, "分散式系統", "一致性模型")
+}
+
+func isDistributedSystemsSignificanceRoleDutyObject(object string) bool {
+	return hasAnySignificanceMarker(object, "志工", "助教") || strings.HasSuffix(object, "工作")
 }
 
 func isMarathonSignificanceParticipationObject(object string) bool {
@@ -228,12 +232,22 @@ func isNegatedSignificanceReversal(prefix string) bool {
 }
 
 func isObjectlessAbandonmentSignal(content string) bool {
-	value := strings.TrimSpace(content)
-	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
-		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
-	}
-	value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
+	value := normalizeObjectlessAbandonmentSignal(content)
 	return value == "放棄" || value == "放棄了"
+}
+
+func normalizeObjectlessAbandonmentSignal(value string) string {
+	value = strings.TrimSpace(value)
+	for {
+		previous := value
+		value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
+		for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+			value = strings.TrimSpace(strings.TrimPrefix(value, framing))
+		}
+		if value == previous {
+			return value
+		}
+	}
 }
 
 func hasAnySignificanceMarker(content string, markers ...string) bool {
