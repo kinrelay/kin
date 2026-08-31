@@ -67,3 +67,17 @@ func TestDeterministicGeneratorAccumulatesSupportedActionsWithinCompoundClause(t
 		t.Fatalf("Generate() provenance = %#v, want %#v", got.Provenance, want)
 	}
 }
+
+func TestDeterministicGeneratorDoesNotTreatPreposedAbandonmentObjectAsObjectlessReversal(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-db", Content: "最近開始研究分散式系統"},
+		{ID: "activity-english", Content: "英文我放棄了"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want distributed-systems topic preserved when abandonment explicitly targets English before the verb", got.Meaning)
+	}
+}
