@@ -351,6 +351,7 @@ func startsSupportedAction(content string) bool {
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
 		"不再", "停止", "沒有", "不想", "放棄", "取消參賽", "取消參加", "不參加", "不參賽",
 		"不會停止", "不想停止", "不願停止", "沒有停止", "從未停止",
+		"不會放棄", "不想放棄", "不願放棄", "沒有放棄", "從未放棄",
 		"不會取消參賽", "不會取消參加", "不願取消參賽", "不願取消參加",
 		"沒有取消參賽", "沒有取消參加", "從未取消參賽", "從未取消參加",
 	)
@@ -429,15 +430,19 @@ func reversalPreposedObject(prefix string) string {
 func reversalObjectTargetsTopic(object string, topicMarkers []string) bool {
 	object = strings.TrimSpace(object)
 	if isMarathonTopicMarkerSet(topicMarkers) {
-		if !strings.Contains(object, "馬拉松") {
-			return false
-		}
-		if hasAnySubstring(object, "志工", "物資", "攝影", "工作") {
-			return false
-		}
-		return object == "馬拉松" || strings.Contains(object, "馬拉松訓練") || strings.Contains(object, "馬拉松參賽") || strings.Contains(object, "馬拉松比賽")
+		return isMarathonParticipationObject(object)
 	}
 	return hasAnySubstring(object, topicMarkers...)
+}
+
+func isMarathonParticipationObject(object string) bool {
+	object = strings.TrimSpace(object)
+	if object == "馬拉松" {
+		return true
+	}
+	return strings.HasSuffix(object, "馬拉松訓練") ||
+		strings.HasSuffix(object, "馬拉松參賽") ||
+		strings.HasSuffix(object, "馬拉松比賽")
 }
 
 func isMarathonTopicMarkerSet(topicMarkers []string) bool {
