@@ -31,3 +31,19 @@ func TestEvaluateSignificanceDoesNotTreatPreposedMarathonWorkAsParticipationReve
 		t.Fatalf("EvaluateSignificance(%q) = %#v, want marathon work abandonment to remain low-signal", content, decisions)
 	}
 }
+
+func TestEvaluateSignificanceAdmitsBareAbandonmentInsideShortCompoundUpdate(t *testing.T) {
+	content := "後來放棄了，工作很忙"
+	decisions := EvaluateSignificance([]SignificanceSignal{{ActivityID: "activity-1", Content: content}})
+	if len(decisions) != 1 || decisions[0].Status != SignificanceEligible {
+		t.Fatalf("EvaluateSignificance(%q) = %#v, want compound bare abandonment eligible for reconciliation", content, decisions)
+	}
+}
+
+func TestEvaluateSignificanceDoesNotTreatSpectatorMarathonAsParticipationReversal(t *testing.T) {
+	content := "觀看馬拉松比賽我放棄了"
+	decisions := EvaluateSignificance([]SignificanceSignal{{ActivityID: "activity-1", Content: content}})
+	if len(decisions) != 1 || decisions[0].Status != SignificanceSuppressed || decisions[0].Reason != SuppressionLowSignal {
+		t.Fatalf("EvaluateSignificance(%q) = %#v, want spectator marathon abandonment to remain low-signal", content, decisions)
+	}
+}
