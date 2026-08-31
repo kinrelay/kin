@@ -211,11 +211,12 @@ func splitCompoundActions(clause string) []string {
 	}
 	left := strings.TrimSpace(clause[:boundaryIndex])
 	right := strings.TrimSpace(clause[boundaryIndex+boundaryLength:])
-	result := make([]string, 0, 1+len(splitCompoundActions(right)))
+	rightSegments := splitCompoundActions(right)
+	result := make([]string, 0, 1+len(rightSegments))
 	if left != "" {
 		result = append(result, left)
 	}
-	return append(result, splitCompoundActions(right)...)
+	return append(result, rightSegments...)
 }
 
 func nextActionBoundary(content string) (int, int) {
@@ -260,7 +261,12 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 				index := searchFrom + relativeIndex
 				suffix := strings.TrimSpace(clause[index+len(pattern):])
 				object := reversalObject(suffix)
-				if isObjectlessReversal(object) || hasAnySubstring(object, topicMarkers...) {
+				if isObjectlessReversal(object) {
+					preposedObject := reversalPreposedObject(clause[:index])
+					if preposedObject == "" || hasAnySubstring(preposedObject, topicMarkers...) {
+						return true
+					}
+				} else if hasAnySubstring(object, topicMarkers...) {
 					return true
 				}
 				searchFrom = index + len(pattern)
@@ -275,6 +281,15 @@ func reversalObject(suffix string) string {
 		suffix = suffix[:boundaryIndex]
 	}
 	return strings.TrimSpace(suffix)
+}
+
+func reversalPreposedObject(prefix string) string {
+	prefix = strings.TrimSpace(prefix)
+	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+		prefix = strings.TrimSpace(strings.TrimPrefix(prefix, framing))
+	}
+	prefix = strings.TrimSpace(strings.TrimSuffix(prefix, "我"))
+	return prefix
 }
 
 func isObjectlessReversal(object string) bool {
