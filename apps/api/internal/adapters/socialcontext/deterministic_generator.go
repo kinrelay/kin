@@ -90,7 +90,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	}
 	sort.Strings(topics)
 
-	return applicationssocialcontext.GeneratedContext{
+	return applicationsocialcontext.GeneratedContext{
 		Meaning:    "近期關注" + strings.Join(topics, "；"),
 		Provenance: provenance,
 	}, nil
