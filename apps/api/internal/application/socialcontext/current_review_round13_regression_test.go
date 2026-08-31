@@ -3,21 +3,23 @@ package socialcontext
 import (
 	"context"
 	"testing"
+	"time"
 
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 )
 
 func TestDeriveContextCandidateOmitsBlockedAbandonmentFromCompoundGeneratorInput(t *testing.T) {
 	ownerID, _ := domainidentity.NewID("owner-1")
+	baseTime := time.Date(2026, 8, 31, 20, 0, 0, 0, time.UTC)
 	generator := &fakeContextGenerator{out: GeneratedContext{
 		Meaning:    "近期持續關注分散式系統，也開始投入耐力運動準備",
 		Provenance: []string{"activity-distributed", "activity-compound"},
 	}}
 	repository := &fakeSocialContextRepository{}
 	uc := NewDeriveContextCandidate(fakeContextActivityReader{activities: []ActivityForContext{
-		{ID: "activity-distributed", OwnerID: ownerID, Content: "最近開始深入研究分散式系統設計"},
-		{ID: "activity-french", OwnerID: ownerID, Content: "最近開始學習法文"},
-		{ID: "activity-compound", OwnerID: ownerID, Content: "後來放棄了，最近開始準備馬拉松比賽"},
+		{ID: "activity-distributed", OwnerID: ownerID, Content: "最近開始深入研究分散式系統設計", OccurredAt: baseTime},
+		{ID: "activity-french", OwnerID: ownerID, Content: "最近開始學習法文", OccurredAt: baseTime.Add(time.Minute)},
+		{ID: "activity-compound", OwnerID: ownerID, Content: "後來放棄了，最近開始準備馬拉松比賽", OccurredAt: baseTime.Add(2 * time.Minute)},
 	}}, generator, repository)
 
 	outcome, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{
