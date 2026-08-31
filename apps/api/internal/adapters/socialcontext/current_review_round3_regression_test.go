@@ -78,3 +78,60 @@ func TestDeterministicGeneratorAppliesExplicitReversalBeforeBareAbandonment(t *t
 		t.Fatalf("Generate() = %#v, want explicit marathon reversal applied before bare abandonment binds to remaining distributed-systems antecedent", got)
 	}
 }
+
+func TestDeterministicGeneratorPreservesAffirmativeIntentWithFramedNegatedAbandonment(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, content := range []string{
+		"開始準備馬拉松但後來不會放棄馬拉松",
+		"開始準備馬拉松但後來不願放棄馬拉松",
+		"開始準備馬拉松但後來從未放棄馬拉松",
+	} {
+		t.Run(content, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{
+				ID:      "activity-run",
+				Content: content,
+			}}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if !strings.Contains(got.Meaning, "耐力運動") {
+				t.Fatalf("Generate() meaning = %q, want framed negated abandonment to preserve affirmative marathon intent", got.Meaning)
+			}
+		})
+	}
+}
+
+func TestDeterministicGeneratorRejectsSpectatorIntentEndingInMarathonRace(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	for _, content := range []string{
+		"開始準備觀看馬拉松比賽",
+		"開始準備應援馬拉松比賽",
+	} {
+		t.Run(content, func(t *testing.T) {
+			got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{
+				ID:      "activity-spectator",
+				Content: content,
+			}}})
+			if err != nil {
+				t.Fatalf("Generate() error = %v", err)
+			}
+			if got.Meaning != "" || len(got.Provenance) != 0 {
+				t.Fatalf("Generate() = %#v, want spectator intent rejected as non-participation", got)
+			}
+		})
+	}
+}
+
+func TestDeterministicGeneratorDoesNotUseSpectatorIntentAsPreposedMarathonReversal(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-run", Content: "開始準備馬拉松"},
+		{ID: "activity-spectator", Content: "觀看馬拉松比賽我放棄了"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want spectator abandonment to preserve existing marathon participation", got.Meaning)
+	}
+}
