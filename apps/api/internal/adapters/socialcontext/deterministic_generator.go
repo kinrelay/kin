@@ -172,18 +172,6 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 	localTopics := make([]string, 0, 2)
 	boundTopics := make([]string, 0, 2)
 	for _, clause := range clauses {
-		// Keep the simulated clause-time state aligned with Generate/summarizeSignals.
-		// An explicit reversal must retire its topic before a following bare
-		// abandonment chooses the nearest remaining antecedent.
-		if hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals) {
-			localTopics = removeTopic(localTopics, distributedSystemsTopic)
-			batchState, _ = removeRecognizedTopic(batchState, distributedSystemsTopic)
-		}
-		if hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals) {
-			localTopics = removeTopic(localTopics, marathonTopic)
-			batchState, _ = removeRecognizedTopic(batchState, marathonTopic)
-		}
-
 		if isObjectlessAbandonmentClause(clause) {
 			var topic string
 			if len(localTopics) > 0 {
@@ -197,6 +185,19 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 				batchState, _ = removeRecognizedTopic(batchState, topic)
 			}
 			continue
+		}
+
+		// Keep the simulated clause-time state aligned with Generate/summarizeSignals.
+		// Explicit reversals retire their topic before a later bare abandonment
+		// chooses the nearest remaining antecedent; the bare abandonment itself is
+		// handled above because its target is context-dependent.
+		if hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals) {
+			localTopics = removeTopic(localTopics, distributedSystemsTopic)
+			batchState, _ = removeRecognizedTopic(batchState, distributedSystemsTopic)
+		}
+		if hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals) {
+			localTopics = removeTopic(localTopics, marathonTopic)
+			batchState, _ = removeRecognizedTopic(batchState, marathonTopic)
 		}
 
 		for _, topic := range summarizeSignals(clause) {
