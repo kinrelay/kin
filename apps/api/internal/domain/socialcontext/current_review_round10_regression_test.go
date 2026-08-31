@@ -21,3 +21,21 @@ func TestEvaluateSignificanceRecognizesCompoundMarathonReversalBeforeTrailingAct
 
 	assertDuplicateDecisionByID(t, decisions, "activity-marathon-stop", SignificanceEligible, SuppressionNone)
 }
+
+func TestEvaluateSignificanceKeepsRoleDutyAntecedentAsBarrier(t *testing.T) {
+	decisions := EvaluateSignificance([]SignificanceSignal{
+		{ActivityID: "activity-role-duty", Content: "開始研究分散式系統志工"},
+		{ActivityID: "activity-abandon", Content: "放棄了"},
+	})
+
+	assertDuplicateDecisionByID(t, decisions, "activity-role-duty", SignificanceSuppressed, SuppressionLowSignal)
+	assertDuplicateDecisionByID(t, decisions, "activity-abandon", SignificanceSuppressed, SuppressionLowSignal)
+}
+
+func TestEvaluateSignificanceTrimsTemporalBoundaryForShortMarathonReversal(t *testing.T) {
+	decisions := EvaluateSignificance([]SignificanceSignal{
+		{ActivityID: "activity-marathon-stop", Content: "放棄馬拉松後開始工作"},
+	})
+
+	assertDuplicateDecisionByID(t, decisions, "activity-marathon-stop", SignificanceEligible, SuppressionNone)
+}
