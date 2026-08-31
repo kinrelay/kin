@@ -64,7 +64,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 		}
 
 		duplicateKey := strings.ToLower(content)
-		if canonicalByContent[duplicateKey] != activityID {
+		if !containsObjectlessAbandonmentSignal(content) && canonicalByContent[duplicateKey] != activityID {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionDuplicate
 			decisions = append(decisions, decision)
@@ -104,10 +104,8 @@ func canonicalActivityIDs(signals []SignificanceSignal) map[string]string {
 
 func isExplicitReversalSignal(content string) bool {
 	content = strings.TrimSpace(content)
-	for _, clause := range splitSignificanceClauses(content) {
-		if isObjectlessAbandonmentSignal(clause) {
-			return true
-		}
+	if containsObjectlessAbandonmentSignal(content) {
+		return true
 	}
 
 	if hasTopicBoundSignificanceReversal(content, []string{"分散式系統", "一致性模型"},
@@ -123,6 +121,15 @@ func isExplicitReversalSignal(content string) bool {
 		"取消參賽", "取消參加", "不參加", "不參賽", "放棄",
 	) {
 		return true
+	}
+	return false
+}
+
+func containsObjectlessAbandonmentSignal(content string) bool {
+	for _, clause := range splitSignificanceClauses(content) {
+		if isObjectlessAbandonmentSignal(clause) {
+			return true
+		}
 	}
 	return false
 }
@@ -190,6 +197,9 @@ func isDistributedSystemsSignificanceTopicObject(object string) bool {
 }
 
 func isDistributedSystemsSignificanceRoleDutyObject(object string) bool {
+	if strings.HasSuffix(object, "如何工作") {
+		return false
+	}
 	return hasAnySignificanceMarker(object, "志工", "助教") || strings.HasSuffix(object, "工作")
 }
 
@@ -257,8 +267,4 @@ func hasAnySignificanceMarker(content string, markers ...string) bool {
 		}
 	}
 	return false
-}
-
-func normalizeSignificanceContent(value string) string {
-	return strings.Join(strings.Fields(value), " ")
 }
