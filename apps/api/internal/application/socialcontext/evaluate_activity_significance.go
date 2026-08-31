@@ -69,19 +69,11 @@ func (uc EvaluateActivitySignificance) Execute(ctx context.Context, query Evalua
 			return nil, ErrActivityOwnerMismatch
 		}
 	}
-	// Duplicate significance is a chronology-sensitive policy: when equivalent
-	// signals repeat, the newest occurrence is the representative. Do not trust
-	// adapter/request order to encode that meaning. ContributedAt is the explicit
-	// secondary chronology when two Activities share the same OccurredAt.
+	// Duplicate significance is chronology-sensitive: equivalent signals keep
+	// the newest representative. Use the same total chronology as derivation.
 	sort.SliceStable(activities, func(i, j int) bool {
 		left, right := activities[i], activities[j]
-		if !left.OccurredAt.IsZero() && !right.OccurredAt.IsZero() && !left.OccurredAt.Equal(right.OccurredAt) {
-			return left.OccurredAt.Before(right.OccurredAt)
-		}
-		if !left.ContributedAt.IsZero() && !right.ContributedAt.IsZero() && !left.ContributedAt.Equal(right.ContributedAt) {
-			return left.ContributedAt.Before(right.ContributedAt)
-		}
-		return false
+		return ActivityChronologyLess(left.ID, left.OccurredAt, left.ContributedAt, right.ID, right.OccurredAt, right.ContributedAt)
 	})
 
 	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
