@@ -65,19 +65,23 @@ func (r *MemoryReadRepository) ListOwnerPrivateNormalized(_ context.Context, own
 
 	sort.SliceStable(selected, func(i, j int) bool {
 		left, right := selected[i], selected[j]
-		if left.OccurredAt().Equal(right.OccurredAt()) {
-			return string(left.ID()) < string(right.ID())
+		if !left.OccurredAt().Equal(right.OccurredAt()) {
+			return left.OccurredAt().Before(right.OccurredAt())
 		}
-		return left.OccurredAt().Before(right.OccurredAt())
+		if !left.ContributedAt().Equal(right.ContributedAt()) {
+			return left.ContributedAt().Before(right.ContributedAt())
+		}
+		return false
 	})
 
 	result := make([]applicationsocialcontext.ActivityForContext, 0, len(selected))
 	for _, value := range selected {
 		result = append(result, applicationsocialcontext.ActivityForContext{
-			ID:         string(value.ID()),
-			OwnerID:    value.OwnerID(),
-			Content:    value.Content().String(),
-			OccurredAt: value.OccurredAt(),
+			ID:            string(value.ID()),
+			OwnerID:       value.OwnerID(),
+			Content:       value.Content().String(),
+			OccurredAt:    value.OccurredAt(),
+			ContributedAt: value.ContributedAt(),
 		})
 	}
 	return result, nil
