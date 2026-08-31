@@ -23,6 +23,20 @@ func TestDeterministicGeneratorRejectsModifierBearingDistributedSystemsReversal(
 	}
 }
 
+func TestDeterministicGeneratorRecognizesDistributedSystemsAbandonment(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-start", Content: "最近開始研究分散式系統與可靠性工程取捨"},
+		{ID: "activity-stop", Content: "放棄研究分散式系統"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning != "" || len(got.Provenance) != 0 {
+		t.Fatalf("Generate() = %#v, want abandonment to retract distributed-systems topic", got)
+	}
+}
+
 func TestDeterministicGeneratorDoesNotTreatNounPrefixAsActionBoundary(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{
