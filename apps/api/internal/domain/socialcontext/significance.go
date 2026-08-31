@@ -175,7 +175,7 @@ func significanceReversalObjectTargetsTopic(object string, markers []string) boo
 }
 
 func isMarathonSignificanceParticipationObject(object string) bool {
-	object = strings.TrimSpace(object)
+	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
 	if object == "馬拉松" {
 		return true
 	}
@@ -209,7 +209,7 @@ func splitSignificanceClauses(content string) []string {
 
 func isNegatedSignificanceReversal(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
-	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未")
+	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未") || strings.HasSuffix(prefix, "不再")
 }
 
 func isObjectlessAbandonmentSignal(content string) bool {
@@ -217,6 +217,7 @@ func isObjectlessAbandonmentSignal(content string) bool {
 	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
 		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
 	}
+	value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
 	return value == "放棄" || value == "放棄了"
 }
 
