@@ -17,10 +17,11 @@ var (
 
 // ActivityForSignificance is the minimal normalized, owner-private Activity projection required by this use case.
 type ActivityForSignificance struct {
-	ID         string
-	OwnerID    domainidentity.ID
-	Content    string
-	OccurredAt time.Time
+	ID            string
+	OwnerID       domainidentity.ID
+	Content       string
+	OccurredAt    time.Time
+	ContributedAt time.Time
 }
 
 // ActivitySignificanceReader exposes only the requested owner-private normalized Activity batch needed for significance evaluation.
@@ -70,13 +71,17 @@ func (uc EvaluateActivitySignificance) Execute(ctx context.Context, query Evalua
 	}
 	// Duplicate significance is a chronology-sensitive policy: when equivalent
 	// signals repeat, the newest occurrence is the representative. Do not trust
-	// adapter/request order to encode that meaning.
+	// adapter/request order to encode that meaning. ContributedAt is the explicit
+	// secondary chronology when two Activities share the same OccurredAt.
 	sort.SliceStable(activities, func(i, j int) bool {
-		left, right := activities[i].OccurredAt, activities[j].OccurredAt
-		if left.IsZero() || right.IsZero() || left.Equal(right) {
-			return false
+		left, right := activities[i], activities[j]
+		if !left.OccurredAt.IsZero() && !right.OccurredAt.IsZero() && !left.OccurredAt.Equal(right.OccurredAt) {
+			return left.OccurredAt.Before(right.OccurredAt)
 		}
-		return left.Before(right)
+		if !left.ContributedAt.IsZero() && !right.ContributedAt.IsZero() && !left.ContributedAt.Equal(right.ContributedAt) {
+			return left.ContributedAt.Before(right.ContributedAt)
+		}
+		return false
 	})
 
 	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
