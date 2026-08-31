@@ -142,10 +142,11 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 
 				object := strings.TrimSpace(clause[index+len(pattern):])
 				if object == "" || object == "了" {
-					if hasAnySignificanceMarker(clause[:index], markers...) {
+					preposedObject := significanceReversalPreposedObject(clause[:index])
+					if significanceReversalObjectTargetsTopic(preposedObject, markers) {
 						return true
 					}
-				} else if hasAnySignificanceMarker(object, markers...) {
+				} else if significanceReversalObjectTargetsTopic(object, markers) {
 					return true
 				}
 				searchFrom = index + len(pattern)
@@ -153,6 +154,32 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 		}
 	}
 	return false
+}
+
+func significanceReversalPreposedObject(prefix string) string {
+	prefix = strings.TrimSpace(prefix)
+	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+		prefix = strings.TrimSpace(strings.TrimPrefix(prefix, framing))
+	}
+	return strings.TrimSpace(strings.TrimSuffix(prefix, "我"))
+}
+
+func significanceReversalObjectTargetsTopic(object string, markers []string) bool {
+	object = strings.TrimSpace(object)
+	if len(markers) == 1 && markers[0] == "馬拉松" {
+		return isMarathonSignificanceParticipationObject(object)
+	}
+	return hasAnySignificanceMarker(object, markers...)
+}
+
+func isMarathonSignificanceParticipationObject(object string) bool {
+	object = strings.TrimSpace(object)
+	if object == "馬拉松" {
+		return true
+	}
+	return strings.HasSuffix(object, "馬拉松訓練") ||
+		strings.HasSuffix(object, "馬拉松參賽") ||
+		strings.HasSuffix(object, "馬拉松比賽")
 }
 
 func splitSignificanceClauses(content string) []string {
