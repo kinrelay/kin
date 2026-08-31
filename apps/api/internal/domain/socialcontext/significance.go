@@ -71,7 +71,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
-		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, index) && !hasIndependentSupportedSignificanceClause(content) {
+		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, signals, index) && !hasIndependentSupportedSignificanceClause(content) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
 			decisions = append(decisions, decision)
@@ -93,11 +93,19 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	return decisions
 }
 
-func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, currentIndex int) bool {
-	if currentIndex <= 0 || len(decisions) == 0 {
+func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []SignificanceSignal, currentIndex int) bool {
+	if currentIndex <= 0 || len(decisions) == 0 || decisions[len(decisions)-1].Status != SignificanceSuppressed {
 		return false
 	}
-	return decisions[len(decisions)-1].Status == SignificanceSuppressed
+	for index := currentIndex - 2; index >= 0; index-- {
+		if decisions[index].Status != SignificanceEligible {
+			continue
+		}
+		if isSupportedSignificanceAntecedent(normalizeSignificanceContent(signals[index].Content)) {
+			return true
+		}
+	}
+	return false
 }
 
 func hasIndependentSupportedSignificanceClause(content string) bool {
