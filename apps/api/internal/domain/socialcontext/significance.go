@@ -111,7 +111,7 @@ func isSupportedSignificanceAntecedent(content string) bool {
 		"最近開始比較不同一致性模型", "開始比較不同一致性模型", "持續比較不同一致性模型",
 		"最近開始研究一致性模型", "開始研究一致性模型", "持續研究一致性模型",
 	} {
-		if strings.HasPrefix(content, prefix) {
+		if strings.HasPrefix(content, prefix) && !isDistributedSystemsSignificanceRoleDutyObject(content) {
 			return true
 		}
 	}
@@ -205,7 +205,7 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 }
 
 func significanceReversalObjectBeforeNextAction(object string) string {
-	for _, boundary := range []string{"但是", "但", "並且", "並", "且", "而", "同時", "然後", "之後"} {
+	for _, boundary := range []string{"但是", "後來", "之後", "然後", "但", "並且", "並", "且", "而", "同時", "後"} {
 		searchFrom := 0
 		for searchFrom < len(object) {
 			relativeIndex := strings.Index(object[searchFrom:], boundary)
