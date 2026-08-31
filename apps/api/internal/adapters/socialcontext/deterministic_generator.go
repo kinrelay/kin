@@ -83,7 +83,13 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		}
 
 		switch {
-		case recognizedInActivity, len(reversed) > 0, len(boundAbandonments) > 0, standaloneAbandonment:
+		case recognizedInActivity:
+			unsupportedAntecedentBarrier = false
+		case len(reversed) > 0:
+			// An explicit reversal is itself the nearest semantic antecedent. Keep a
+			// barrier so a later bare abandonment cannot jump past it to an older topic.
+			unsupportedAntecedentBarrier = true
+		case len(boundAbandonments) > 0, standaloneAbandonment:
 			unsupportedAntecedentBarrier = false
 		case strings.TrimSpace(activity.Content) != "":
 			unsupportedAntecedentBarrier = true
