@@ -65,13 +65,10 @@ func (r *MemoryReadRepository) ListOwnerPrivateNormalized(_ context.Context, own
 
 	sort.SliceStable(selected, func(i, j int) bool {
 		left, right := selected[i], selected[j]
-		if !left.OccurredAt().Equal(right.OccurredAt()) {
-			return left.OccurredAt().Before(right.OccurredAt())
-		}
-		if !left.ContributedAt().Equal(right.ContributedAt()) {
-			return left.ContributedAt().Before(right.ContributedAt())
-		}
-		return false
+		return applicationsocialcontext.ActivityChronologyLess(
+			string(left.ID()), left.OccurredAt(), left.ContributedAt(),
+			string(right.ID()), right.OccurredAt(), right.ContributedAt(),
+		)
 	})
 
 	result := make([]applicationsocialcontext.ActivityForContext, 0, len(selected))
