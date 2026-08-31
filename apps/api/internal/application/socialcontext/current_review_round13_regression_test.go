@@ -35,6 +35,12 @@ func TestDeriveContextCandidateOmitsBlockedAbandonmentFromCompoundGeneratorInput
 	if len(generator.input.Activities) != 2 {
 		t.Fatalf("generator activities = %#v, want distributed and sanitized compound activities", generator.input.Activities)
 	}
+	if got := generator.input.Activities[0].ID; got != "activity-distributed" {
+		t.Fatalf("first generator activity ID = %q, want activity-distributed", got)
+	}
+	if got := generator.input.Activities[1].ID; got != "activity-compound" {
+		t.Fatalf("second generator activity ID = %q, want activity-compound", got)
+	}
 	if got := generator.input.Activities[1].Content; got != "最近開始準備馬拉松比賽" {
 		t.Fatalf("compound generator content = %q, want blocked abandonment removed", got)
 	}
