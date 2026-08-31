@@ -108,14 +108,14 @@ func isExplicitReversalSignal(content string) bool {
 		return true
 	}
 
-	if hasAnySignificanceMarker(content, "分散式系統", "一致性模型") && hasAffirmativeSignificanceReversal(content,
+	if hasTopicBoundSignificanceReversal(content, []string{"分散式系統", "一致性模型"},
 		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究", "放棄深入研究",
 		"不再研究", "停止研究", "不想研究", "沒有研究", "放棄研究",
 		"不再比較", "停止比較", "放棄了", "放棄",
 	) {
 		return true
 	}
-	if strings.Contains(content, "馬拉松") && hasAffirmativeSignificanceReversal(content,
+	if hasTopicBoundSignificanceReversal(content, []string{"馬拉松"},
 		"不再準備", "停止準備", "沒有準備",
 		"不再訓練", "停止訓練", "沒有訓練",
 		"取消參賽", "取消參加", "不參加", "不參賽", "放棄",
@@ -125,22 +125,52 @@ func isExplicitReversalSignal(content string) bool {
 	return false
 }
 
-func hasAffirmativeSignificanceReversal(content string, patterns ...string) bool {
-	for _, pattern := range patterns {
-		searchFrom := 0
-		for searchFrom < len(content) {
-			relativeIndex := strings.Index(content[searchFrom:], pattern)
-			if relativeIndex < 0 {
-				break
+func hasTopicBoundSignificanceReversal(content string, markers []string, patterns ...string) bool {
+	for _, clause := range splitSignificanceClauses(content) {
+		for _, pattern := range patterns {
+			searchFrom := 0
+			for searchFrom < len(clause) {
+				relativeIndex := strings.Index(clause[searchFrom:], pattern)
+				if relativeIndex < 0 {
+					break
+				}
+				index := searchFrom + relativeIndex
+				if isNegatedSignificanceReversal(clause[:index]) {
+					searchFrom = index + len(pattern)
+					continue
+				}
+
+				object := strings.TrimSpace(clause[index+len(pattern):])
+				if object == "" || object == "了" {
+					if hasAnySignificanceMarker(clause[:index], markers...) {
+						return true
+					}
+				} else if hasAnySignificanceMarker(object, markers...) {
+					return true
+				}
+				searchFrom = index + len(pattern)
 			}
-			index := searchFrom + relativeIndex
-			if !isNegatedSignificanceReversal(content[:index]) {
-				return true
-			}
-			searchFrom = index + len(pattern)
 		}
 	}
 	return false
+}
+
+func splitSignificanceClauses(content string) []string {
+	parts := strings.FieldsFunc(content, func(r rune) bool {
+		switch r {
+		case '，', ',', '。', '.', '！', '!', '？', '?', '；', ';', '\n':
+			return true
+		default:
+			return false
+		}
+	})
+	clauses := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if clause := strings.TrimSpace(part); clause != "" {
+			clauses = append(clauses, clause)
+		}
+	}
+	return clauses
 }
 
 func isNegatedSignificanceReversal(prefix string) bool {
