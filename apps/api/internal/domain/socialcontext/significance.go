@@ -318,9 +318,28 @@ func isMarathonSignificanceParticipationObject(object string) bool {
 			continue
 		}
 		modifier := strings.TrimSpace(strings.TrimSuffix(object, suffix))
-		return modifier == "" || modifier == "第一次全程"
+		return isSupportedMarathonSignificanceModifier(modifier)
 	}
 	return false
+}
+
+func isSupportedMarathonSignificanceModifier(modifier string) bool {
+	if modifier == "" {
+		return true
+	}
+	if !strings.HasPrefix(modifier, "第") || !strings.HasSuffix(modifier, "次全程") {
+		return false
+	}
+	ordinal := strings.TrimSuffix(strings.TrimPrefix(modifier, "第"), "次全程")
+	if ordinal == "" {
+		return false
+	}
+	for _, r := range ordinal {
+		if !strings.ContainsRune("零〇一二三四五六七八九十百千0123456789", r) {
+			return false
+		}
+	}
+	return true
 }
 
 func splitSignificanceClauses(content string) []string {
@@ -334,11 +353,41 @@ func splitSignificanceClauses(content string) []string {
 	})
 	clauses := make([]string, 0, len(parts))
 	for _, part := range parts {
-		if clause := strings.TrimSpace(part); clause != "" {
-			clauses = append(clauses, clause)
+		for _, clause := range splitSignificanceCompoundActions(strings.TrimSpace(part)) {
+			if clause != "" {
+				clauses = append(clauses, clause)
+			}
 		}
 	}
 	return clauses
+}
+
+func splitSignificanceCompoundActions(clause string) []string {
+	clause = strings.TrimSpace(clause)
+	if clause == "" {
+		return nil
+	}
+	for _, boundary := range []string{"但是", "並且", "同時", "但", "並", "且", "而"} {
+		searchFrom := 0
+		for searchFrom < len(clause) {
+			relativeIndex := strings.Index(clause[searchFrom:], boundary)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			right := strings.TrimSpace(clause[index+len(boundary):])
+			if startsSignificanceAction(right) {
+				left := strings.TrimSpace(clause[:index])
+				rightClauses := splitSignificanceCompoundActions(right)
+				if left == "" {
+					return rightClauses
+				}
+				return append([]string{left}, rightClauses...)
+			}
+			searchFrom = index + len(boundary)
+		}
+	}
+	return []string{clause}
 }
 
 func isNegatedSignificanceReversal(prefix string) bool {
