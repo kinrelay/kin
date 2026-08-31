@@ -349,7 +349,9 @@ func startsSupportedAction(content string) bool {
 	return hasAnyPrefix(content,
 		"最近開始", "開始", "持續",
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
+		"後來不會停止", "後來不想停止", "後來不願停止", "後來沒有停止", "後來從未停止",
 		"後來不會放棄", "後來不想放棄", "後來不願放棄", "後來沒有放棄", "後來從未放棄",
+		"後來不會取消", "後來不想取消", "後來不願取消", "後來沒有取消", "後來從未取消",
 		"不再", "停止", "沒有", "不想", "放棄", "取消參賽", "取消參加", "不參加", "不參賽",
 		"不會停止", "不想停止", "不願停止", "沒有停止", "從未停止",
 		"不會放棄", "不想放棄", "不願放棄", "沒有放棄", "從未放棄",
@@ -409,11 +411,20 @@ func hasAffirmativeReversalOccurrence(content string, patterns ...string) bool {
 
 func isNegatedReversalOccurrence(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
-	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未")
+	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未") || strings.HasSuffix(prefix, "不再")
 }
 
 func reversalObject(suffix string) string {
-	if boundaryIndex, _ := nextActionBoundary(suffix); boundaryIndex >= 0 {
+	boundaryIndex := -1
+	if actionIndex, _ := nextActionBoundary(suffix); actionIndex >= 0 {
+		boundaryIndex = actionIndex
+	}
+	for _, boundary := range []string{"但最近", "但目前", "但現在"} {
+		if index := strings.Index(suffix, boundary); index >= 0 && (boundaryIndex < 0 || index < boundaryIndex) {
+			boundaryIndex = index
+		}
+	}
+	if boundaryIndex >= 0 {
 		suffix = suffix[:boundaryIndex]
 	}
 	return strings.TrimSpace(suffix)
@@ -437,7 +448,7 @@ func reversalObjectTargetsTopic(object string, topicMarkers []string) bool {
 }
 
 func isMarathonParticipationObject(object string) bool {
-	object = strings.TrimSpace(object)
+	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
 	if object == "馬拉松" {
 		return true
 	}
@@ -470,6 +481,7 @@ func isObjectlessAbandonmentClause(value string) bool {
 	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
 		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
 	}
+	value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
 	return value == "放棄" || value == "放棄了"
 }
 
