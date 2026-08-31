@@ -171,7 +171,22 @@ func significanceReversalObjectTargetsTopic(object string, markers []string) boo
 	if len(markers) == 1 && markers[0] == "馬拉松" {
 		return isMarathonSignificanceParticipationObject(object)
 	}
+	if isDistributedSystemsSignificanceMarkerSet(markers) {
+		return isDistributedSystemsSignificanceTopicObject(object)
+	}
 	return hasAnySignificanceMarker(object, markers...)
+}
+
+func isDistributedSystemsSignificanceMarkerSet(markers []string) bool {
+	return len(markers) == 2 && markers[0] == "分散式系統" && markers[1] == "一致性模型"
+}
+
+func isDistributedSystemsSignificanceTopicObject(object string) bool {
+	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
+	if hasAnySignificanceMarker(object, "志工", "助教", "工作") {
+		return false
+	}
+	return hasAnySignificanceMarker(object, "分散式系統", "一致性模型")
 }
 
 func isMarathonSignificanceParticipationObject(object string) bool {
