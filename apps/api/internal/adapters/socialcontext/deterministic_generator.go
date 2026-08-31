@@ -339,6 +339,11 @@ func nextActionBoundary(content string) (int, int) {
 				break
 			}
 			index := searchFrom + relative
+			left := strings.TrimSpace(content[:index])
+			if boundary == "後來" && (left == "" || left == "我") {
+				searchFrom = index + len(boundary)
+				continue
+			}
 			remainder := strings.TrimSpace(content[index+len(boundary):])
 			if startsSupportedAction(remainder) && (bestIndex < 0 || index < bestIndex || (index == bestIndex && len(boundary) > bestLength)) {
 				bestIndex = index
