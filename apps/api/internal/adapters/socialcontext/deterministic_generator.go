@@ -16,8 +16,9 @@ const (
 var (
 	distributedSystemsMarkers = []string{"分散式系統", "一致性模型"}
 	distributedSystemsReversals = []string{
-		"不再深入研究", "不想深入研究", "停止深入研究", "沒有深入研究",
-		"不再研究", "不想研究", "停止研究", "沒有研究", "不再比較", "停止比較",
+		"不再深入研究", "不想深入研究", "停止深入研究", "沒有深入研究", "放棄深入研究",
+		"不再研究", "不想研究", "停止研究", "沒有研究", "放棄研究",
+		"不再比較", "停止比較", "放棄了", "放棄",
 	}
 	marathonMarkers   = []string{"馬拉松"}
 	marathonReversals = []string{"沒有準備", "不再準備", "停止準備", "沒有訓練", "不再訓練", "停止訓練", "放棄馬拉松", "放棄了", "放棄", "不參加", "不參賽"}
@@ -38,22 +39,12 @@ func NewDeterministicGenerator() DeterministicGenerator {
 
 func (DeterministicGenerator) Generate(_ context.Context, input applicationsocialcontext.ContextGenerationInput) (applicationsocialcontext.GeneratedContext, error) {
 	recognized := make([]recognizedSignal, 0, len(input.Activities))
-	retiredProvenance := make([]string, 0)
-	retiredSeen := make(map[string]struct{})
 	for _, activity := range input.Activities {
 		// Input order is chronological (oldest to newest). A reversal removes only
-		// previously recognized state, allowing a genuinely later affirmative signal
-		// to establish the topic again.
+		// previously recognized state in this requested derivation batch, allowing
+		// a genuinely later affirmative signal to establish the topic again.
 		for topic := range reversedTopics(activity.Content) {
-			var retired []string
-			recognized, retired = removeRecognizedTopic(recognized, topic)
-			for _, activityID := range retired {
-				if _, seen := retiredSeen[activityID]; seen {
-					continue
-				}
-				retiredSeen[activityID] = struct{}{}
-				retiredProvenance = append(retiredProvenance, activityID)
-			}
+			recognized, _ = removeRecognizedTopic(recognized, topic)
 		}
 
 		seenInActivity := make(map[string]struct{}, 2)
@@ -66,7 +57,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		}
 	}
 	if len(recognized) == 0 {
-		return applicationsocialcontext.GeneratedContext{RetiredProvenance: retiredProvenance}, nil
+		return applicationsocialcontext.GeneratedContext{}, nil
 	}
 
 	provenance := make([]string, 0, len(recognized))
@@ -87,9 +78,8 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 	sort.Strings(topics)
 
 	return applicationsocialcontext.GeneratedContext{
-		Meaning:           "近期關注" + strings.Join(topics, "；"),
-		Provenance:        provenance,
-		RetiredProvenance: retiredProvenance,
+		Meaning:    "近期關注" + strings.Join(topics, "；"),
+		Provenance: provenance,
 	}, nil
 }
 
@@ -215,21 +205,17 @@ func splitCompoundActions(clause string) []string {
 	if clause == "" {
 		return nil
 	}
-	for index := 0; index < len(clause); {
-		boundaryIndex, boundaryLength := nextActionBoundary(clause[index:])
-		if boundaryIndex < 0 {
-			break
-		}
-		boundaryIndex += index
-		left := strings.TrimSpace(clause[:boundaryIndex])
-		right := strings.TrimSpace(clause[boundaryIndex+boundaryLength:])
-		result := make([]string, 0, 1+len(splitCompoundActions(right)))
-		if left != "" {
-			result = append(result, left)
-		}
-		return append(result, splitCompoundActions(right)...)
+	boundaryIndex, boundaryLength := nextActionBoundary(clause)
+	if boundaryIndex < 0 {
+		return []string{clause}
 	}
-	return []string{clause}
+	left := strings.TrimSpace(clause[:boundaryIndex])
+	right := strings.TrimSpace(clause[boundaryIndex+boundaryLength:])
+	result := make([]string, 0, 1+len(splitCompoundActions(right)))
+	if left != "" {
+		result = append(result, left)
+	}
+	return append(result, splitCompoundActions(right)...)
 }
 
 func nextActionBoundary(content string) (int, int) {
