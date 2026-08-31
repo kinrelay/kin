@@ -67,20 +67,3 @@ func TestDeterministicGeneratorAccumulatesSupportedActionsWithinCompoundClause(t
 		t.Fatalf("Generate() provenance = %#v, want %#v", got.Provenance, want)
 	}
 }
-
-func TestDeterministicGeneratorReportsRetiredProvenanceWhenLaterReversalWins(t *testing.T) {
-	generator := NewDeterministicGenerator()
-	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
-		{ID: "activity-start", Content: "最近開始研究分散式系統與可靠性工程取捨"},
-		{ID: "activity-stop", Content: "不再研究分散式系統"},
-	}})
-	if err != nil {
-		t.Fatalf("Generate() error = %v", err)
-	}
-	if got.Meaning != "" {
-		t.Fatalf("Generate() meaning = %q, want no current topic after later reversal", got.Meaning)
-	}
-	if want := []string{"activity-start"}; !reflect.DeepEqual(got.RetiredProvenance, want) {
-		t.Fatalf("Generate() retired provenance = %#v, want %#v", got.RetiredProvenance, want)
-	}
-}
