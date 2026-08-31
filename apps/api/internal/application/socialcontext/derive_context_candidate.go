@@ -126,7 +126,7 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 			continue
 		}
 		activity := byID[decision.ActivityID]
-		eligible = append(eligible, ContextGenerationActivity{ID: activity.ID, Content: activity.Content})
+		eligible = append(eligible, ContextGenerationActivity{ID: activity.ID, Content: decision.DerivationContent})
 		eligibleSources = append(eligibleSources, domainsocialcontext.SourceActivity{ID: activity.ID, Content: activity.Content})
 	}
 	if len(eligible) == 0 {
