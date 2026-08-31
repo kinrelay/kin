@@ -452,10 +452,14 @@ func reversalObjectTargetsTopic(object string, topicMarkers []string) bool {
 
 func isDistributedSystemsTopicObject(object string) bool {
 	object = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(object), "了"))
-	if hasAnySubstring(object, "志工", "助教", "工作") {
+	if isDistributedSystemsRoleDutyObject(object) {
 		return false
 	}
 	return hasAnySubstring(object, distributedSystemsMarkers...)
+}
+
+func isDistributedSystemsRoleDutyObject(object string) bool {
+	return hasAnySubstring(object, "志工", "助教") || strings.HasSuffix(object, "工作")
 }
 
 func isDistributedSystemsTopicMarkerSet(topicMarkers []string) bool {
@@ -511,12 +515,22 @@ func withoutObjectlessAbandonmentClauses(clauses []string) []string {
 }
 
 func isObjectlessAbandonmentClause(value string) bool {
-	value = strings.TrimSpace(value)
-	for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
-		value = strings.TrimSpace(strings.TrimPrefix(value, framing))
-	}
-	value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
+	value = normalizeObjectlessAbandonmentClause(value)
 	return value == "放棄" || value == "放棄了"
+}
+
+func normalizeObjectlessAbandonmentClause(value string) string {
+	value = strings.TrimSpace(value)
+	for {
+		previous := value
+		value = strings.TrimSpace(strings.TrimPrefix(value, "我"))
+		for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+			value = strings.TrimSpace(strings.TrimPrefix(value, framing))
+		}
+		if value == previous {
+			return value
+		}
+	}
 }
 
 func isStandaloneObjectlessAbandonment(content string) bool {
