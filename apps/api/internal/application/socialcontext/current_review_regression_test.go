@@ -18,13 +18,13 @@ func TestDeriveContextCandidateUsesDeterministicTotalChronologyWhenTimestampsTie
 		{ID: "a-start", OwnerID: ownerID, Content: "最近開始研究分散式系統與可靠性工程取捨", OccurredAt: occurred, ContributedAt: contributed},
 	}
 
-	got := deriveGeneratorInputIDs(t, ownerID, activities)
+	got := deriveGeneratorInputIDs(t, activities)
 	if want := []string{"a-start", "z-stop"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("generator input IDs = %#v, want deterministic total chronology %#v", got, want)
 	}
 
 	reversed := []ActivityForContext{activities[1], activities[0]}
-	gotReversed := deriveGeneratorInputIDs(t, ownerID, reversed)
+	gotReversed := deriveGeneratorInputIDs(t, reversed)
 	if !reflect.DeepEqual(gotReversed, got) {
 		t.Fatalf("reverse reader order changed chronology: first=%#v reversed=%#v", got, gotReversed)
 	}
@@ -39,13 +39,13 @@ func TestDeriveContextCandidateChronologyHandlesMissingTimestampsTransitively(t 
 		{ID: "a-unknown", OwnerID: ownerID, Content: "持續比較不同一致性模型的工程取捨"},
 	}
 
-	got := deriveGeneratorInputIDs(t, ownerID, activities)
+	got := deriveGeneratorInputIDs(t, activities)
 	if want := []string{"a-unknown", "b-contributed", "c-known"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("generator input IDs = %#v, want explicit availability order %#v", got, want)
 	}
 }
 
-func deriveGeneratorInputIDs(t *testing.T, ownerID domainidentity.ID, activities []ActivityForContext) []string {
+func deriveGeneratorInputIDs(t *testing.T, activities []ActivityForContext) []string {
 	t.Helper()
 	generator := &fakeContextGenerator{}
 	uc := NewDeriveContextCandidate(fakeContextActivityReader{activities: activities}, generator, &fakeSocialContextRepository{})
@@ -53,7 +53,7 @@ func deriveGeneratorInputIDs(t *testing.T, ownerID domainidentity.ID, activities
 	for _, activity := range activities {
 		ids = append(ids, activity.ID)
 	}
-	_, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{RequesterID: ownerID.String(), ActivityIDs: ids})
+	_, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{RequesterID: "owner-1", ActivityIDs: ids})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
