@@ -41,9 +41,10 @@ type SignificanceSignal struct {
 
 // SignificanceDecision records the Activity-scoped result without creating Context Candidate or Social Context state.
 type SignificanceDecision struct {
-	ActivityID string
-	Status     SignificanceStatus
-	Reason     SuppressionReason
+	ActivityID        string
+	Status            SignificanceStatus
+	Reason            SuppressionReason
+	DerivationContent string
 }
 
 // EvaluateSignificance applies the deterministic MVP 2 significance/suppression policy while preserving input order.
@@ -71,7 +72,8 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
-		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, signals, index) && !hasIndependentSupportedSignificanceClause(content) {
+		blockedAbandonment := containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, signals, index)
+		if blockedAbandonment && !hasIndependentSupportedSignificanceClause(content) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
 			decisions = append(decisions, decision)
@@ -87,6 +89,10 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 
 		decision.Status = SignificanceEligible
 		decision.Reason = SuppressionNone
+		decision.DerivationContent = content
+		if blockedAbandonment {
+			decision.DerivationContent = independentSupportedSignificanceContent(content)
+		}
 		decisions = append(decisions, decision)
 	}
 
@@ -113,15 +119,20 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 }
 
 func hasIndependentSupportedSignificanceClause(content string) bool {
+	return independentSupportedSignificanceContent(content) != ""
+}
+
+func independentSupportedSignificanceContent(content string) string {
+	clauses := make([]string, 0)
 	for _, clause := range splitSignificanceClauses(content) {
 		if isObjectlessAbandonmentSignal(clause) {
 			continue
 		}
 		if isSupportedSignificanceAntecedent(clause) || isExplicitReversalSignal(clause) {
-			return true
+			clauses = append(clauses, clause)
 		}
 	}
-	return false
+	return strings.Join(clauses, "，")
 }
 
 func isSupportedSignificanceAntecedent(content string) bool {
