@@ -71,6 +71,13 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
+		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions) {
+			decision.Status = SignificanceSuppressed
+			decision.Reason = SuppressionLowSignal
+			decisions = append(decisions, decision)
+			continue
+		}
+
 		if utf8.RuneCountInString(content) < MinimumMeaningfulRunes && !isExplicitReversalSignal(content) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
@@ -84,6 +91,14 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	}
 
 	return decisions
+}
+
+func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision) bool {
+	if len(decisions) == 0 {
+		return false
+	}
+	previous := decisions[len(decisions)-1]
+	return previous.Status == SignificanceSuppressed && previous.Reason != SuppressionDuplicate
 }
 
 // canonicalActivityIDs treats the input order as occurrence chronology and keeps
@@ -149,7 +164,7 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 					continue
 				}
 
-				object := strings.TrimSpace(clause[index+len(pattern):])
+				object := significanceReversalObjectBeforeNextAction(strings.TrimSpace(clause[index+len(pattern):]))
 				if object == "" || object == "了" {
 					preposedObject := significanceReversalPreposedObject(clause[:index])
 					if significanceReversalObjectTargetsTopic(preposedObject, markers) {
@@ -160,6 +175,36 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 				}
 				searchFrom = index + len(pattern)
 			}
+		}
+	}
+	return false
+}
+
+func significanceReversalObjectBeforeNextAction(object string) string {
+	for _, boundary := range []string{"但是", "但", "並且", "並", "且", "而", "同時", "然後", "之後"} {
+		searchFrom := 0
+		for searchFrom < len(object) {
+			relativeIndex := strings.Index(object[searchFrom:], boundary)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			suffix := strings.TrimSpace(object[index+len(boundary):])
+			if startsSignificanceAction(suffix) {
+				return strings.TrimSpace(object[:index])
+			}
+			searchFrom = index + len(boundary)
+		}
+	}
+	return object
+}
+
+func startsSignificanceAction(value string) bool {
+	for _, prefix := range []string{
+		"最近開始", "開始", "持續", "停止", "放棄", "取消", "不再", "不想", "不願", "沒有", "不參加", "不參賽", "研究", "準備", "訓練", "工作",
+	} {
+		if strings.HasPrefix(value, prefix) {
+			return true
 		}
 	}
 	return false
