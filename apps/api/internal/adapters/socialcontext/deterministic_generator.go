@@ -46,7 +46,7 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		// Input order is chronological (oldest to newest). A reversal removes only
 		// previously recognized state in this requested derivation batch, allowing
 		// a genuinely later affirmative signal to establish the topic again.
-		if topic := compoundObjectlessAbandonmentTopic(activity.Content); topic != "" {
+		for _, topic := range compoundObjectlessAbandonmentTopics(activity.Content, recognized) {
 			recognized, _ = removeRecognizedTopic(recognized, topic)
 		}
 
@@ -155,21 +155,36 @@ func summarizeSignals(content string) []string {
 	return topics
 }
 
-func compoundObjectlessAbandonmentTopic(content string) string {
+func compoundObjectlessAbandonmentTopics(content string, recognized []recognizedSignal) []string {
 	clauses := splitSignalClauses(content)
 	if len(clauses) < 2 {
-		return ""
+		return nil
 	}
-	for i, clause := range clauses {
-		if i == 0 || !isObjectlessAbandonmentClause(clause) {
+
+	batchState := append([]recognizedSignal(nil), recognized...)
+	localTopics := make([]string, 0, 2)
+	boundTopics := make([]string, 0, 2)
+	for _, clause := range clauses {
+		if isObjectlessAbandonmentClause(clause) {
+			var topic string
+			if len(localTopics) > 0 {
+				topic = localTopics[len(localTopics)-1]
+				localTopics = removeTopic(localTopics, topic)
+			} else if len(batchState) > 0 {
+				topic = batchState[len(batchState)-1].topic
+			}
+			if topic != "" {
+				boundTopics = append(boundTopics, topic)
+				batchState, _ = removeRecognizedTopic(batchState, topic)
+			}
 			continue
 		}
-		precedingTopics := summarizeSignals(strings.Join(clauses[:i], "，"))
-		if len(precedingTopics) > 0 {
-			return precedingTopics[len(precedingTopics)-1]
+
+		for _, topic := range summarizeSignals(clause) {
+			localTopics = append(localTopics, topic)
 		}
 	}
-	return ""
+	return boundTopics
 }
 
 func reversedTopics(content string) map[string]struct{} {
@@ -231,17 +246,8 @@ func isAffirmativeMarathonParticipationClause(clause string) bool {
 		}
 		target := strings.TrimSpace(strings.TrimPrefix(clause, prefix))
 		target = trimMarathonTrailingDescription(target)
-		for _, participationTarget := range []string{
-			"馬拉松",
-			"第一次全程馬拉松訓練",
-			"全程馬拉松訓練",
-			"馬拉松訓練",
-			"馬拉松參賽",
-			"馬拉松比賽",
-		} {
-			if target == participationTarget {
-				return true
-			}
+		if reversalObjectTargetsTopic(target, marathonMarkers) {
+			return true
 		}
 	}
 	return false
@@ -337,7 +343,7 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 					break
 				}
 				index := searchFrom + relativeIndex
-				if isNegatedAbandonmentOccurrence(clause[:index], pattern) {
+				if isNegatedReversalOccurrence(clause[:index]) {
 					searchFrom = index + len(pattern)
 					continue
 				}
@@ -358,10 +364,7 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 	return false
 }
 
-func isNegatedAbandonmentOccurrence(prefix, pattern string) bool {
-	if !strings.Contains(pattern, "放棄") {
-		return false
-	}
+func isNegatedReversalOccurrence(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
 	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願")
 }
