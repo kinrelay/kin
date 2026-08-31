@@ -22,6 +22,20 @@ func TestDeterministicGeneratorPreservesAffirmativeIntentWithUnwillingCancellati
 	}
 }
 
+func TestDeterministicGeneratorPreservesAffirmativeIntentWithNegatedStop(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{
+		ID:      "activity-run",
+		Content: "開始準備馬拉松但不會停止準備馬拉松",
+	}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want negated stop to preserve affirmative marathon intent", got.Meaning)
+	}
+}
+
 func TestDeterministicGeneratorAppliesExplicitReversalBeforeBareAbandonment(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
