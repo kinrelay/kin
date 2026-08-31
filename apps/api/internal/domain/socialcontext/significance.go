@@ -268,3 +268,7 @@ func hasAnySignificanceMarker(content string, markers ...string) bool {
 	}
 	return false
 }
+
+func normalizeSignificanceContent(value string) string {
+	return strings.Join(strings.Fields(value), " ")
+}
