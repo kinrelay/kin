@@ -22,6 +22,34 @@ func TestDeterministicGeneratorKeepsTechnicalHowItWorksSignalEligible(t *testing
 	}
 }
 
+func TestDeterministicGeneratorDoesNotPromoteRoleDutyHowItWorksSignal(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{
+		ID:      "activity-1",
+		Content: "最近開始研究分散式系統志工如何工作",
+	}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning != "" {
+		t.Fatalf("Generate() meaning = %q, want role-duty marker to remain excluded even with 如何工作 suffix", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorDoesNotRetireTopicForRoleDutyHowItWorksAbandonment(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-topic", Content: "最近開始研究分散式系統"},
+		{ID: "activity-role", Content: "分散式系統志工如何工作我放棄了"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if !strings.Contains(got.Meaning, "分散式系統") {
+		t.Fatalf("Generate() meaning = %q, want role-duty abandonment to preserve distributed-systems topic", got.Meaning)
+	}
+}
+
 func TestDeterministicGeneratorDoesNotBindBareAbandonmentPastLocalUnsupportedAntecedent(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
