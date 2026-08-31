@@ -1,0 +1,50 @@
+package socialcontext
+
+import (
+	"context"
+	"strings"
+	"testing"
+
+	appsc "github.com/kinrelay/kin/apps/api/internal/application/socialcontext"
+)
+
+func TestDeterministicGeneratorDoesNotTreatMarathonVolunteerAbandonmentAsParticipationReversal(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-run", Content: "最近開始準備馬拉松"},
+		{ID: "activity-volunteer-stop", Content: "馬拉松比賽的志工工作我放棄了"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want marathon participation preserved when abandonment targets volunteer work", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorPreservesMarathonIntentBeforeUnpunctuatedDescription(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	raw := "最近開始準備第一次全程馬拉松訓練但目前沒有受傷"
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{{ID: "activity-run", Content: raw}}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want marathon participation preserved before unrelated trailing description", got.Meaning)
+	}
+}
+
+func TestDeterministicGeneratorBindsObjectlessAbandonmentToNearestAntecedent(t *testing.T) {
+	generator := NewDeterministicGenerator()
+	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
+		{ID: "activity-db", Content: "最近開始研究分散式系統"},
+		{ID: "activity-run", Content: "最近開始準備馬拉松"},
+		{ID: "activity-stop", Content: "後來放棄了"},
+	}})
+	if err != nil {
+		t.Fatalf("Generate() error = %v", err)
+	}
+	if got.Meaning == "" || !strings.Contains(got.Meaning, "分散式系統") || strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() meaning = %q, want nearest marathon antecedent reversed while distributed-systems topic remains", got.Meaning)
+	}
+}
