@@ -51,7 +51,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	canonicalByContent := canonicalActivityIDs(signals)
 	decisions := make([]SignificanceDecision, 0, len(signals))
 
-	for _, signal := range signals {
+	for index, signal := range signals {
 		activityID := strings.TrimSpace(signal.ActivityID)
 		content := normalizeSignificanceContent(signal.Content)
 		decision := SignificanceDecision{ActivityID: activityID}
@@ -71,7 +71,7 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 			continue
 		}
 
-		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions) {
+		if containsObjectlessAbandonmentSignal(content) && hasSuppressedAntecedentBarrier(decisions, signals, index) {
 			decision.Status = SignificanceSuppressed
 			decision.Reason = SuppressionLowSignal
 			decisions = append(decisions, decision)
@@ -93,12 +93,36 @@ func EvaluateSignificance(signals []SignificanceSignal) []SignificanceDecision {
 	return decisions
 }
 
-func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision) bool {
-	if len(decisions) == 0 {
+func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []SignificanceSignal, currentIndex int) bool {
+	if currentIndex <= 0 || len(decisions) == 0 {
 		return false
 	}
 	previous := decisions[len(decisions)-1]
-	return previous.Status == SignificanceSuppressed && previous.Reason != SuppressionDuplicate
+	if previous.Status != SignificanceSuppressed || previous.Reason == SuppressionDuplicate {
+		return false
+	}
+	return !isSupportedSignificanceAntecedent(normalizeSignificanceContent(signals[currentIndex-1].Content))
+}
+
+func isSupportedSignificanceAntecedent(content string) bool {
+	for _, prefix := range []string{
+		"最近開始深入研究分散式系統", "開始深入研究分散式系統", "持續深入研究分散式系統",
+		"最近開始研究分散式系統", "開始研究分散式系統", "持續研究分散式系統",
+		"最近開始比較不同一致性模型", "開始比較不同一致性模型", "持續比較不同一致性模型",
+		"最近開始研究一致性模型", "開始研究一致性模型", "持續研究一致性模型",
+	} {
+		if strings.HasPrefix(content, prefix) {
+			return true
+		}
+	}
+	if strings.Contains(content, "馬拉松") {
+		for _, prefix := range []string{"最近開始準備", "開始準備", "持續準備", "最近開始訓練", "開始訓練", "持續訓練", "完成第一次全程"} {
+			if strings.HasPrefix(content, prefix) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // canonicalActivityIDs treats the input order as occurrence chronology and keeps
