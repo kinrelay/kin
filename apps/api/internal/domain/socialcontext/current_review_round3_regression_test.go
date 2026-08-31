@@ -15,3 +15,11 @@ func TestEvaluateSignificanceDoesNotLetNegatedShortReversalsBypassLowSignal(t *t
 		})
 	}
 }
+
+func TestEvaluateSignificanceDoesNotBindShortReversalToUnrelatedTopicMarker(t *testing.T) {
+	content := "馬拉松，放棄午餐"
+	decisions := EvaluateSignificance([]SignificanceSignal{{ActivityID: "activity-1", Content: content}})
+	if len(decisions) != 1 || decisions[0].Status != SignificanceSuppressed || decisions[0].Reason != SuppressionLowSignal {
+		t.Fatalf("EvaluateSignificance(%q) = %#v, want unrelated short reversal to remain low-signal", content, decisions)
+	}
+}
