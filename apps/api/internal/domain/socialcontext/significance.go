@@ -107,18 +107,15 @@ func isExplicitReversalSignal(content string) bool {
 	if isObjectlessAbandonmentSignal(content) {
 		return true
 	}
-	if strings.Contains(content, "不會放棄") || strings.Contains(content, "不想放棄") {
-		return false
-	}
 
-	if hasAnySignificanceMarker(content, "分散式系統", "一致性模型") && hasAnySignificanceMarker(content,
+	if hasAnySignificanceMarker(content, "分散式系統", "一致性模型") && hasAffirmativeSignificanceReversal(content,
 		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究", "放棄深入研究",
 		"不再研究", "停止研究", "不想研究", "沒有研究", "放棄研究",
 		"不再比較", "停止比較", "放棄了", "放棄",
 	) {
 		return true
 	}
-	if strings.Contains(content, "馬拉松") && hasAnySignificanceMarker(content,
+	if strings.Contains(content, "馬拉松") && hasAffirmativeSignificanceReversal(content,
 		"不再準備", "停止準備", "沒有準備",
 		"不再訓練", "停止訓練", "沒有訓練",
 		"取消參賽", "取消參加", "不參加", "不參賽", "放棄",
@@ -126,6 +123,29 @@ func isExplicitReversalSignal(content string) bool {
 		return true
 	}
 	return false
+}
+
+func hasAffirmativeSignificanceReversal(content string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		searchFrom := 0
+		for searchFrom < len(content) {
+			relativeIndex := strings.Index(content[searchFrom:], pattern)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			if !isNegatedSignificanceReversal(content[:index]) {
+				return true
+			}
+			searchFrom = index + len(pattern)
+		}
+	}
+	return false
+}
+
+func isNegatedSignificanceReversal(prefix string) bool {
+	prefix = strings.TrimSpace(prefix)
+	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未")
 }
 
 func isObjectlessAbandonmentSignal(content string) bool {
