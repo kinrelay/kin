@@ -349,6 +349,7 @@ func startsSupportedAction(content string) bool {
 	return hasAnyPrefix(content,
 		"最近開始", "開始", "持續",
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
+		"後來不會放棄", "後來不想放棄", "後來不願放棄", "後來沒有放棄", "後來從未放棄",
 		"不再", "停止", "沒有", "不想", "放棄", "取消參賽", "取消參加", "不參加", "不參賽",
 		"不會停止", "不想停止", "不願停止", "沒有停止", "從未停止",
 		"不會放棄", "不想放棄", "不願放棄", "沒有放棄", "從未放棄",
@@ -440,9 +441,14 @@ func isMarathonParticipationObject(object string) bool {
 	if object == "馬拉松" {
 		return true
 	}
-	return strings.HasSuffix(object, "馬拉松訓練") ||
-		strings.HasSuffix(object, "馬拉松參賽") ||
-		strings.HasSuffix(object, "馬拉松比賽")
+	for _, suffix := range []string{"馬拉松訓練", "馬拉松參賽", "馬拉松比賽"} {
+		if !strings.HasSuffix(object, suffix) {
+			continue
+		}
+		modifier := strings.TrimSpace(strings.TrimSuffix(object, suffix))
+		return modifier == "" || modifier == "第一次全程"
+	}
+	return false
 }
 
 func isMarathonTopicMarkerSet(topicMarkers []string) bool {
