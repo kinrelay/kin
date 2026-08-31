@@ -137,7 +137,7 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	if err != nil {
 		return DerivationOutcome{}, err
 	}
-	if generated.Meaning == "" {
+	if generated.Meaning == "" && len(generated.Provenance) == 0 {
 		return DerivationOutcome{Status: DerivationSuppressed}, nil
 	}
 
