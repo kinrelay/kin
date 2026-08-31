@@ -149,7 +149,7 @@ func summarizeSignals(content string) []string {
 			"最近開始研究一致性模型",
 			"開始研究一致性模型",
 			"持續研究一致性模型",
-		):
+		) && isDistributedSystemsTopicObject(clause):
 			if !distributedReversed {
 				topics = append(topics, distributedSystemsTopic)
 			}
@@ -326,7 +326,7 @@ func splitCompoundActions(clause string) []string {
 func nextActionBoundary(content string) (int, int) {
 	bestIndex := -1
 	bestLength := 0
-	for _, boundary := range []string{"但是", "以及", "並且", "同時", "並", "且", "而", "但"} {
+	for _, boundary := range []string{"但是", "之後", "然後", "以及", "並且", "同時", "並", "且", "而", "但", "後"} {
 		searchFrom := 0
 		for searchFrom < len(content) {
 			relative := strings.Index(content[searchFrom:], boundary)
