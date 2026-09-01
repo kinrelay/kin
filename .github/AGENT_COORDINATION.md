@@ -60,7 +60,7 @@ Release、inactive、stale、done、blocked、lease expiration 與 validated tak
 - bootstrap claim 自身的 server `created_at` 是第一個 accepted active timestamp；client-provided `heartbeat`、`claimed_at` 或 comment edit time 不得改寫 terminal 判定；
 - terminal anchor set 一旦在目前 GitHub history 中成立，後續任何引用同一 anchor 的 active/progress comment 都不得把它移除或復活。原 session 若要恢復工作，只能發布新的 bootstrap claim，取得全新的 anchor並重新 arbitration。
 
-因此 reduction 順序固定為：驗證 takeover → 建立 revoked anchor set → 驗證 terminal comment 的 owner-to-anchor binding → 依 server chronology 建立 terminal anchor set → 才對非 terminal / 非 revoked anchor 做 per-worker latest-state reduction。這可避免 delayed heartbeat 在 release 或 lease expiry 之後以較新的 comment timestamp 復活舊 ownership，也避免另一個 trusted worker 偽造 terminal state撤銷 live owner。
+因此 reduction 順序固定為：驗證 takeover → 建立 revoked anchor set → 驗證 terminal comment 的 owner-to-anchor binding → 依 server chronology 建立 terminal anchor set → 才對非 terminal / 非 revoked anchor 做 per-worker latest-state reduction。這可避免 delayed heartbeat 在 release 或 lease expiry 之後以較新的 comment timestamp 復活舊 ownership，也避免另一個 trusted worker 偽造 terminal state 撤銷 live owner。
 
 只有 latest trusted comment 同時為 `claim: active`、引用未 terminal / 未 revoked 的有效 anchor，且 lease 未過期，worker 才算 live claim。
 
