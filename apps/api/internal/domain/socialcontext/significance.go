@@ -164,6 +164,7 @@ func supportedSignificanceAntecedentTopic(content string) string {
 			continue
 		}
 		target := strings.TrimSpace(strings.TrimPrefix(content, prefix))
+		target = trimMarathonSignificanceTrailingDescription(target)
 		if isMarathonSignificanceParticipationObject(target) {
 			return "marathon"
 		}
@@ -256,6 +257,15 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 
 func hasExplicitOtherSignificanceSubject(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
+	for {
+		previous := prefix
+		for _, framing := range []string{"但後來", "後來", "最近", "目前", "現在", "已經"} {
+			prefix = strings.TrimSpace(strings.TrimPrefix(prefix, framing))
+		}
+		if prefix == previous {
+			break
+		}
+	}
 	for _, subject := range []string{"我的朋友們", "我的朋友", "朋友們", "朋友", "同事們", "同事", "家人們", "家人", "伴侶", "他們", "她們", "他", "她"} {
 		if strings.HasPrefix(prefix, subject) {
 			return true
@@ -357,6 +367,15 @@ func isMarathonSignificanceParticipationObject(object string) bool {
 	return false
 }
 
+func trimMarathonSignificanceTrailingDescription(target string) string {
+	for _, boundary := range []string{"但最近", "但目前", "但現在"} {
+		if index := strings.Index(target, boundary); index >= 0 {
+			return strings.TrimSpace(target[:index])
+		}
+	}
+	return target
+}
+
 func isSupportedMarathonSignificanceModifier(modifier string) bool {
 	if modifier == "" {
 		return true
@@ -403,7 +422,7 @@ func splitSignificanceCompoundActions(clause string) []string {
 	}
 	bestIndex := -1
 	bestLength := 0
-	for _, boundary := range []string{"但是", "然後", "並且", "同時", "但", "並", "且", "而"} {
+	for _, boundary := range []string{"但是", "之後", "然後", "並且", "同時", "但", "並", "且", "而"} {
 		searchFrom := 0
 		for searchFrom < len(clause) {
 			relativeIndex := strings.Index(clause[searchFrom:], boundary)
