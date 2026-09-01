@@ -284,6 +284,13 @@ func significanceReversalObjectBeforeNextAction(object string) string {
 }
 
 func startsSignificanceAction(value string) bool {
+	value = strings.TrimSpace(value)
+	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+		if strings.HasPrefix(value, subject) {
+			value = strings.TrimSpace(strings.TrimPrefix(value, subject))
+			break
+		}
+	}
 	for _, prefix := range []string{
 		"最近開始", "開始", "持續", "停止", "放棄", "取消", "不再", "不想", "不願", "沒有", "不會", "從未", "不參加", "不參賽", "研究", "準備", "訓練", "工作",
 	} {
