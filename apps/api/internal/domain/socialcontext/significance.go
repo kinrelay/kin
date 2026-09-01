@@ -107,6 +107,7 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 	if previousTopic == "" {
 		return true
 	}
+	sawDifferentEligibleTopic := false
 	for index := currentIndex - 2; index >= 0; index-- {
 		if decisions[index].Status != SignificanceEligible {
 			continue
@@ -115,11 +116,15 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 		if significanceReversalTopic(content) == previousTopic {
 			return true
 		}
-		if supportedSignificanceAntecedentTopic(content) == previousTopic {
+		eligibleTopic := supportedSignificanceAntecedentTopic(content)
+		if eligibleTopic == previousTopic {
 			return false
 		}
+		if eligibleTopic != "" {
+			sawDifferentEligibleTopic = true
+		}
 	}
-	return false
+	return sawDifferentEligibleTopic
 }
 
 func hasIndependentSupportedSignificanceClause(content string) bool {
