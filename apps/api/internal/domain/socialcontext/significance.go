@@ -256,7 +256,7 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 
 func hasExplicitOtherSignificanceSubject(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
-	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+	for _, subject := range []string{"我的朋友們", "我的朋友", "朋友們", "朋友", "同事們", "同事", "家人們", "家人", "伴侶", "他們", "她們", "他", "她"} {
 		if strings.HasPrefix(prefix, subject) {
 			return true
 		}
@@ -285,7 +285,7 @@ func significanceReversalObjectBeforeNextAction(object string) string {
 
 func startsSignificanceAction(value string) bool {
 	value = strings.TrimSpace(value)
-	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+	for _, subject := range []string{"我的朋友們", "我的朋友", "朋友們", "朋友", "同事們", "同事", "家人們", "家人", "伴侶", "他們", "她們", "他", "她"} {
 		if strings.HasPrefix(value, subject) {
 			value = strings.TrimSpace(strings.TrimPrefix(value, subject))
 			break
