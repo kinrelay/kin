@@ -1,55 +1,78 @@
 # GitHub Agent Coordination Protocol
 
-本文件定義 coding agents 在 GitHub issue / PR 上協作時的共用互斥與進度紀錄規則。GitHub 是跨 Chat、排程與 coding agent 的協作 source of truth；conversation history 不能取代 GitHub 上可驗證的狀態。
+本文件定義 coding agents 在 GitHub issue / PR 上協作時的互斥、ownership 與進度紀錄規則。GitHub 是跨 Chat、排程與 coding agent 的 coordination source of truth；conversation history 不能取代 GitHub 上可驗證的狀態。
 
-## 適用範圍
+## 適用範圍與 authority
 
-所有會認領 GitHub issue、建立 branch / PR、修改程式碼或處理 review 的 agent 都適用，包括手動 Chat session、排程 Autopilot、Codex 或其他 coding agent。
+所有會認領 GitHub issue、建立 branch / PR、修改程式碼或處理 review 的 agent 都適用，包括 manual Chat、排程 Autopilot、Codex 與其他 coding agent。
 
-Repository 的 `AGENTS.md`、local `AGENTS.md`、active roadmap、issue acceptance criteria / non-goals 與 repo-local skills 仍具有原本的 authority。本文件只定義「誰正在做、如何避免撞工、如何留下可接手狀態」。Root `AGENTS.md` 與 workflow skill 必須明確引用本文件，避免 agent 只依 canonical onboarding 卻漏掉 coordination preflight。
+Repository 的 root/local `AGENTS.md`、active roadmap、issue acceptance criteria / non-goals 與 repo-local skills 維持原本 authority。本文件只定義 ownership / handoff procedure；不得擴張 issue scope或繞過 roadmap、architecture、testing、review gate。Root `AGENTS.md` 與 workflow skill 必須明確引用本文件。
 
 ## Canonical coordination state
 
-Issue comment 是 claim / progress 的 canonical coordination record。Assignee 與 label 可輔助顯示，但不能單獨代表 agent ownership，因為多個 agent 可能共用同一個 GitHub identity。
+Issue comment 是 issue-backed work 的 claim / progress canonical record。Assignee / label 只能輔助顯示，不能單獨代表 agent ownership。
 
 ### Trusted coordination comments
 
-只有**可信任 GitHub actor** 建立的 `<!-- agent-coordination:v1 -->` comment 才能影響 ownership。可信任 actor 必須能由 repository 權限或明確 allowlist 驗證：repository owner，或具有 `write` / `maintain` / `admin` 權限的 actor，或 repository 明確核准、可驗證的 GitHub App / bot identity。`author_association=MEMBER` / `COLLABORATOR` 等關聯資訊本身不足以證明目前具有寫入權，不得單獨建立 trust。
+只有可信任 GitHub actor 建立的 `<!-- agent-coordination:v1 -->` comment 才能改變 ownership。可信任 actor 必須能驗證為 repository owner、具有 `write` / `maintain` / `admin` 權限，或 repository 明確 allowlist 的 GitHub App / bot identity。`author_association=MEMBER` / `COLLABORATOR` 本身不足以建立 trust。
 
-無法驗證 author trust 時，該 comment 只能視為一般 discussion，不得成為 live claim、winner、heartbeat 或 release record。若目前工具無法取得足以驗證 claim author 的 metadata，對新 implementation ownership 必須 fail closed，不得因未驗證 comment 猜測 owner。
+無法驗證 author trust 時，該 comment 只能視為 discussion，不得成為 claim、heartbeat、release、takeover 或 revocation record；新 implementation ownership 必須 fail closed。
 
-### Current state reduction and lease anchor
+### Worker identity、latest state 與 lease anchor
 
-Canonical worker identity 是 `(agent, session)`，不是只有 `session`。對每個 trusted `(agent, session)`，先依 GitHub server `created_at`（必要時再依 comment id）選出**最新一筆 coordination comment**作為該 worker 的 authoritative current state；更早的 `claim: active` 不得覆蓋較新的 `claim: released` / `inactive` / `done` / `blocked`。
+Canonical worker identity 是完整 `(agent, session)`。Session 應為可辨識且不與其他 active worker 混淆的 stable run/session identifier。
 
-Ownership acquisition metadata 必須與 latest state 分離。每段 continuous active lease 以「第一次成功發布且通過 trusted validation 的 `claim: active` comment」作 immutable **server-side lease anchor**。Anchor 的排序來源只能是 GitHub server `created_at`，timestamp 相同再比較 GitHub comment id；不得使用 claimant 自填 timestamp、本機時間或最新 heartbeat comment 的時間決定 ownership。後續 heartbeat / progress 必須重複完整 active state，並引用同一 `lease_anchor: <first-claim-comment-id-or-url>`；不得以 sparse heartbeat 讓 `claim: active` 消失，也不得改變 lease acquisition order。
+對每個 trusted `(agent, session)`，依 GitHub server `created_at`、必要時 comment id，選出最新一筆 coordination comment作 authoritative current state。舊 `claim: active` 不得覆蓋較新的 `claim: released` / `inactive` / `done` / `blocked` / `stale`。
 
-只有 latest trusted comment 同時滿足 `claim: active`、引用目前有效 anchor，且 lease 未過期的 worker，才算 live claim。Release / inactive / stale / done / blocked、lease expiration，或完成 takeover 都是不可逆 lease boundary。舊 anchor 在 boundary 後永久失效；遲到 heartbeat 即使引用舊 anchor也不能復活 ownership。原 session 若之後重新工作，必須發布新 claim、取得新 server-side anchor、重新 arbitration。
+Ownership acquisition metadata 與 latest state 分離。每段 continuous active lease 以第一次 trusted `claim: active` comment 作 immutable **server-side lease anchor**：
 
-每次開始工作前，agent 必須重新檢查：
+- anchor ordering 只使用 GitHub server `created_at`；timestamp 相同再比較 comment id；
+- claimant 自填的 `claimed_at`、`heartbeat` 或本機時間不得決定 ownership；
+- 後續 active heartbeat / progress 必須重複完整 state，並引用同一 `lease_anchor: <claim-comment-id-or-url>`；
+- sparse heartbeat 不得取代完整 current state，也不得改變 lease acquisition order。
 
-1. issue 是否已有 live claim；
-2. 是否已有 linked / active implementation PR；
-3. branch 是否已有近期 commit；
-4. CI / review 是否顯示另一個 session 正在推進；
-5. dependency / roadmap 是否允許目前 issue 開始；
-6. 是否存在尚未清除的 `status: blocked` human-only blocker。
+## Revoked anchor set
 
-若另一個 agent/session 有 live claim，不得平行實作相同 issue，也不得另開重複 PR。
+Arbitration 不只歸約每個 worker 的 latest state，也必須先建立 repository issue scope 內的 **revoked anchor set**。
+
+任何 trusted coordination comment 若包含：
+
+```text
+takeover_of_anchor: <old-anchor-id-or-url>
+```
+
+即為該 old anchor 的永久 revocation tombstone。只要 takeover 已完成並留下此 metadata，所有 arbiter 在處理任何 worker state 前，都必須先把 `takeover_of_anchor` 加入 revoked anchor set；之後凡引用該 anchor 的 heartbeat、progress、release 或其他 late state 一律忽略，不得復活 ownership，即使它的 GitHub `created_at` 較新。
+
+Revocation 是跨 worker reduction：不能只看舊 owner 自己的 latest comment。Trusted takeover tombstone 一旦成立，在同一 issue ownership history 中永久有效；除非該 takeover comment 本身被 GitHub 刪除/失去 trust，否則後續 arbitration 都必須保留此 evidence。
+
+只有 latest trusted comment 同時為 `claim: active`、引用未被 revoked 的有效 anchor，且 lease 未過期，worker 才算 live claim。Release / inactive / stale / done / blocked、lease expiration，以及完成 takeover 都是不可逆 lease boundary。原 session 若之後重新工作，必須發布新 claim、取得新 anchor並重新 arbitration。
+
+## Preflight
+
+開始 implementation ownership 前，agent 必須先：
+
+1. 完整讀取 issue AC/non-goals並確認 active roadmap eligibility；
+2. 檢查最新 trusted coordination comments並建立 revoked anchor set；
+3. 檢查 live claims；
+4. 檢查 linked / active implementation PR；
+5. 檢查 branch commits、CI、review與可歸因其他 session 的 activity；
+6. 確認 dependency與 human-only blocker 狀態。
+
+另一個 agent/session 有有效 live claim 時，不得平行實作相同 issue，也不得另開 duplicate PR。
 
 ## Agent identity
 
 至少區分：
 
-- `manual-chat`：使用者直接開啟的互動式 Chat session；
-- `side-project-autopilot`：跨 side-project 的排程 agent；
-- 其他 agent 使用穩定、可辨識的名稱，例如 `codex`。
+- `manual-chat`
+- `side-project-autopilot`
+- 其他穩定名稱，例如 `codex`
 
-`agent` 表示 worker 類型；`session` 用來區分同一類 worker 的不同執行實例。Session id 應盡量全域唯一；ownership 比較一律使用完整 `(agent, session)` identity。
+Ownership 一律比較完整 `(agent, session)`，不能只比較 session。
 
 ## Claim format
 
-第一次認領 issue 時新增 comment：
+第一次認領 issue：
 
 ```text
 <!-- agent-coordination:v1 -->
@@ -64,7 +87,7 @@ heartbeat: <ISO-8601 UTC timestamp; informational only>
 next: <next concrete action>
 ```
 
-發布後必須重新抓取該 comment 的 GitHub server `created_at` 與 comment id/url，將它固定為這段 lease 的 server-side anchor。後續 active progress 必須帶完整 state，例如：
+發布後重新抓取該 comment 的 GitHub server `created_at` 與 comment id/url，固定為 lease anchor。後續 active progress：
 
 ```text
 <!-- agent-coordination:v1 -->
@@ -82,24 +105,26 @@ heartbeat: <ISO-8601 UTC timestamp>
 next: <next concrete action>
 ```
 
-### Post-claim ownership arbitration
+## Post-claim ownership arbitration
 
-發布 `claim: active` **不代表立即取得 ownership**。為避免兩個 session 同時 preflight、同時 claim 的 race condition，在建立 branch、PR、commit 或修改程式碼前，claimant 必須：
+發布 `claim: active` 不代表立即取得 ownership。在建立 branch、PR、commit 或修改程式碼前：
 
-1. 發布 claim 後重新抓取最新 coordination comments，以及剛發布 comment 的 GitHub server metadata；
-2. 先依「Trusted coordination comments」與「Current state reduction and lease anchor」歸約每個 worker；
-3. 找出仍有效且互相衝突的 live claims，解析各自的有效 server-side lease anchor；
-4. anchor 的 GitHub `created_at` 較早者為唯一 winner；timestamp 相同時比較 GitHub comment id；完全無法排序時 fail closed。不得用 claimant 自填 `claimed_at`、heartbeat 或本機時間決定 winner；
-5. winner 再確認自己仍是唯一有效 owner 後，才能開始 mutation；
-6. loser 必須立即留下 `status: stale`、`claim: released` comment，記錄 winner identity，且不得建立 branch、commit 或 PR。
+1. 重新抓最新 trusted coordination comments與剛發布 claim 的 server metadata；
+2. 先建立完整 revoked anchor set；
+3. 對每個 `(agent, session)` 做 latest-state reduction；
+4. 丟棄引用 revoked anchor、released/inactive/stale/done/blocked、或已過期的 state；
+5. 對剩餘衝突 live claims解析 immutable server-side lease anchor；
+6. anchor `created_at` 較早者為唯一 winner；相同時比較 comment id；無法排序時 fail closed；
+7. winner 再確認自己仍是唯一有效 owner後才能 mutation；
+8. loser 留 `status: stale`、`claim: released`並停止。
 
-舊資料若沒有 `lease_anchor`，只能用該 session 目前 continuous active lease 的第一筆 trusted `claim: active` comment 的 GitHub server `created_at` + comment id 作 migration fallback；不得用最新 heartbeat 時間。若平台無法取得足以完成 trusted-author validation、state reduction 或 deterministic arbitration 的 metadata，fail closed：不得開始新的 implementation。
+舊資料若沒有 `lease_anchor`，只能回溯該 continuous active lease 第一筆 trusted `claim: active` comment 的 server `created_at` + id 作 migration fallback。metadata 不足時 fail closed。
 
-若 issue 只是等待 dependency，不應宣告 active implementation claim；使用 `status: waiting-dependency` 與 `claim: inactive`。
+等待 dependency 使用 `status: waiting-dependency`、`claim: inactive`。
 
 ## Progress / heartbeat
 
-每個 material state transition 都必須回寫 issue comment，不需要為每個小動作洗版。至少涵蓋：
+Material transition 至少使用：
 
 - `claimed`
 - `red`
@@ -112,60 +137,68 @@ next: <next concrete action>
 - `waiting-dependency`
 - `stale`
 
-`red` 是 Kin strict TDD 專用狀態：只有在 issue / repo testing contract 要求 Red → Green，且 regression test 已在正確原因上證明失敗時才能使用。它不是 generic「有錯」狀態，也不能在沒有客觀 failing test evidence 時宣告。
+`red` 是 Kin strict TDD 專用狀態：只有 issue / testing contract 要求 Red → Green，且 regression test 已因正確原因客觀失敗時才能使用，不是 generic error state。
 
-任何 `claim: active` progress / heartbeat 都必須重複完整 claim state並引用同一個有效 `lease_anchor`。Commit、CI 完成、review disposition、PR merge 等重要事件應更新 heartbeat / progress；除此之外，active session 即使狀態沒有改變，也必須至少每 **2 小時**更新一次 heartbeat-only progress comment。Heartbeat 只代表最近活動，不改 lease acquisition order，也不能延長已過期或已被 takeover 的舊 lease。
+所有 `claim: active` heartbeat / progress 必須是完整 state snapshot並引用同一有效 anchor。重要 commit、CI、review disposition、merge 等事件應更新；即使沒有 material transition，也至少每 **2 小時**更新一次。Heartbeat 不改 lease acquisition order，也不能復活 expired/revoked anchor。
 
 ## Claim lease / stale takeover
 
-預設 claim lease 為 **8 小時**。Lease 只由該 trusted `(agent, session)` 在 lease 尚未過期前發布、且引用有效 `lease_anchor` 的最新 coordination heartbeat 續期；排程 CI、review bot、其他 reviewer、其他 session 的 branch/PR/issue 活動都不能延長 owner lease。
+預設 lease **8 小時**。只有該 trusted `(agent, session)` 在 lease 尚未過期前發布、引用有效且未 revoked anchor 的最新 coordination heartbeat可續期。CI、review bot、其他 reviewer/session activity都不能延長 owner lease。
 
-一旦有效 heartbeat 超過 8 小時，該 lease 進入 terminal expired state；之後引用舊 anchor 的遲到 heartbeat不得復活。新的 agent 進入 takeover preflight 時，仍需檢查 linked PR、branch commits、review replies 與 issue discussion，以辨識是否存在**可歸因於原 owner identity**、但漏寫 coordination heartbeat 的近期 mutation；若存在，可暫緩最多一個 heartbeat cadence（2 小時）並要求 coordination state 修復。純 CI、bot review 或其他人的活動只提供 context，不是 takeover veto。
+Lease 超過 8 小時即 terminal expired；舊 anchor 後續 heartbeat不得復活。Takeover preflight仍須檢查 linked PR、branch commits、review replies與 issue discussion，辨識是否有可歸因原 owner、但漏寫 heartbeat 的近期 mutation。若存在，可暫緩最多一個 2 小時 heartbeat cadence；純 CI/bot/他人 activity只是 context，不是 veto。
 
-只有 recent-activity hold 已結束、inactivity preflight 通過並確認 takeover safe 後，新的 agent 才能發布 takeover claim、取得新的 server-side lease anchor、記錄舊 owner / expired evidence，並重新 arbitration。尚在 hold 期間不得 adoption existing PR 或推送既有 branch。
+只有 recent-activity hold 結束、inactivity preflight 通過並確認 safe 後，新 agent 才可發布 takeover claim並取得新 anchor。完成 takeover 時必須再留下 machine-readable revocation evidence：
+
+```text
+<!-- agent-coordination:v1 -->
+agent: <new-agent>
+session: <new-session>
+status: implementing
+claim: active
+lease_anchor: <new-anchor-id-or-url>
+takeover_of_anchor: <old-anchor-id-or-url>
+takeover_from: <old-agent>/<old-session>
+takeover_reason: lease-expired-and-preflight-safe
+branch: <existing-or-new-allowed-branch>
+pr: <existing-pr-or-none>
+heartbeat: <ISO-8601 UTC timestamp>
+next: <next concrete action>
+```
+
+此 `takeover_of_anchor` comment 是永久 tombstone；任何 future arbiter 必須先套用 revocation，再做 latest-state reduction。尚在 hold 期間不得 adoption existing PR 或推送既有 branch。
 
 ## Existing PR wins / adoption
 
-若 issue 已有 active implementation PR，原則是**沿用該 PR，而不是另開重複 PR**；但既有 PR 不代表可無條件接管。
+Issue 已有 active implementation PR 時優先沿用 existing PR，不另開 duplicate，但不能無條件接管：
 
-- 若該 PR 仍有有效 live owner claim，新 claimant 必須退出。
-- 若 current state 是尚未清除的 human-only `status: blocked`，不得選擇或 adoption 該 PR，直到 blocker 明確清除。
-- 若 PR author / trusted owner 已留下明確 handoff、release 或 inactive 記錄，eligible agent 可對 existing PR 發 claim，取得新 server-side anchor並完成 arbitration 後接手可寫 branch。
-- 若 owner lease expired / stale，必須先完成上一節 stale-takeover inactivity preflight與 recent-activity hold；只有確認 safe 後才能 adoption。
-- 若 PR 沒有 coordination metadata，**不得**直接視為 ownerless。先把 PR author / branch owner 視為可能 active，檢查 author commits、review replies、PR/issue comments、CI-triggering pushes 等可歸因活動；只有明確 handoff/consent，或至少超過 8 小時且完整 inactivity preflight 通過後，才可 adoption。
-- 若 branch 不可寫或 ownership 無法安全驗證，記錄 blocker / release claim；不得用另開 duplicate implementation PR 規避。
+- 有有效 live owner：新 claimant退出；
+- 有尚未清除的 human-only `status: blocked`：不得選擇/adoption；
+- author / trusted owner 明確 handoff、release或 inactive：eligible agent可 claim existing PR並完成 arbitration；
+- owner expired/stale：必須先完成 stale-takeover preflight與 hold，完成 takeover時以 `takeover_of_anchor` revoke舊 lease，才能 adoption；
+- 沒有 coordination metadata：不得視為 ownerless；先把 PR author / branch owner視為可能 active，只有明確 handoff/consent，或超過 8 小時且完整 inactivity preflight通過後才可 adoption；
+- branch不可寫或 ownership無法安全驗證：記錄 blocker/release，不得用 duplicate PR規避。
 
-除非 repository contract 或 issue 明確允許 stacking，否則每個 repository 優先維持一個 active implementation PR。
+除非 repo contract / issue 明確允許 stacking，否則每 repo優先一個 active implementation PR。
 
 ## Work selection priority
 
-Autopilot 選工作時使用以下優先順序，仍須服從 repo roadmap / dependency / issue priority：
+Autopilot 仍須服從 roadmap、dependencies與 issue priority，依序：
 
-1. **可由 agent 推進**的 broken active implementation PR；
-2. active implementation PR 上的 actionable review feedback；
-3. active implementation PR 上的 failing canonical CI；
-4. 其他**未被 human-only blocker 阻擋**的 active implementation PR，包括 CI/review 已乾淨、等待 merge 的 merge-ready PR；
-5. 由**目前 agent/session 自己持有 live claim**的 unfinished issue；
-6. roadmap blocker / dependency-unblocking issue；
-7. 其他沒有 live claim、沒有尚未清除 `status: blocked`、且依 active roadmap / dependencies 合法的 eligible issue。
+1. 可由 agent 推進的 broken active implementation PR；
+2. active implementation PR actionable review；
+3. active implementation PR failing canonical CI；
+4. 其他未被 human-only blocker 阻擋的 active implementation PR，包括 merge-ready；
+5. 目前 agent/session自己持有 live claim 的 unfinished issue；
+6. roadmap / dependency blocker；
+7. 其他沒有 live claim、沒有未清除 blocked state且合法 eligible issue。
 
-由其他 agent/session 持有 live claim 的 issue 必須 skip，不屬於第 5 項。需要 secret、permission、irreversible product decision 或其他 human-only input 的 `blocked` 工作必須使用 `claim: inactive`；在 blocker 清除前，它同時從 active-PR queue、existing-PR adoption 與 new-issue eligibility 排除。留下 blocker evidence 後繼續其他 eligible work。
-
-不得因為 issue number 較小、建立時間較早或單純標成高 priority，就跳過正在收尾的 active implementation PR。
+其他 session live claim 必須 skip。Human-only blocker使用 `status: blocked`、`claim: inactive`，在清除前同時排除 active-PR queue、adoption與 new-issue eligibility。
 
 ## Release claim
 
-以下任一情況都必須 terminate / release current lease：
+下列情況 terminate / release current lease：PR merged、issue closed、PR closed without merge、implementation abandoned、PR/branch superseded、lease expired/completed takeover，或進入 human-only blocked。
 
-- PR merged；
-- issue completed / closed；
-- linked PR closed without merge；
-- implementation abandoned；
-- PR/branch 被 supersede；
-- lease expired / completed takeover；
-- 進入需要 human-only input 的 blocked 狀態。
-
-完成時留下：
+一般完成：
 
 ```text
 <!-- agent-coordination:v1 -->
@@ -173,17 +206,19 @@ agent: <agent>
 session: <session>
 status: done
 claim: released
-lease_anchor: <current anchor when applicable>
+lease_anchor: <current-anchor-if-applicable>
 pr: <number-or-none>
 head: <merged-head-or-merge-sha>
 heartbeat: <ISO-8601 UTC timestamp>
 next: <next eligible issue or none>
 ```
 
-若 linked PR 關閉 / abandoned / superseded 但 issue 尚未完成，使用 `claim: released` 並明確寫 `next: issue remains eligible for reassignment`，不得把舊 claim 留成 live。Expired/taken-over lease 的舊 anchor 不得再次使用；同一 session 後續若重回工作，必須取得新 anchor。
+Takeover completion 不應由舊 owner自行 release來建立 revocation；新的 trusted owner必須用 `takeover_of_anchor` tombstone明確撤銷舊 anchor。
 
-若因真正的人類-only blocker 停止，使用 `status: blocked`、`claim: inactive`，清楚寫出需要的 secret、permission、irreversible product decision 或其他無法由 agent 解決的輸入；不要假裝完成，也不要無限持有 claim。
+若 PR closed/abandoned/superseded但 issue未完成，使用 `claim: released` 並寫 `next: issue remains eligible for reassignment`。Expired/taken-over anchor不得再次使用。
+
+Human-only blocker使用 `status: blocked`、`claim: inactive`並記錄所需輸入；不得假裝完成或無限持有 claim。
 
 ## Rules for manual Chat sessions
 
-手動 Chat 在開始 coding 前也必須讀取最新 coordination comment，並遵守相同 trusted-author validation、server-side lease anchor、state reduction 與 post-claim arbitration。看到 `side-project-autopilot` 的 live claim 時應避免撞工；反之 Autopilot 看到 `manual-chat` live claim 時必須跳過該 issue，除非該 claim 已依 stale takeover 規則失效。
+Manual Chat 在 coding 前也必須讀取最新 coordination history、建立 revoked anchor set，並遵守相同 trusted-author validation、server-side anchor、state reduction、post-claim arbitration與 stale takeover。看到 `side-project-autopilot` live claim應避免撞工；Autopilot看到 `manual-chat` live claim同樣必須跳過，除非依規則確定失效。
