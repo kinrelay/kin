@@ -397,7 +397,7 @@ func nextActionBoundary(content string) (int, int) {
 
 func startsSupportedAction(content string) bool {
 	content = strings.TrimSpace(content)
-	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+	for _, subject := range []string{"我的朋友們", "我的朋友", "朋友們", "朋友", "同事們", "同事", "家人們", "家人", "伴侶", "他們", "她們", "他", "她"} {
 		if strings.HasPrefix(content, subject) {
 			content = strings.TrimSpace(strings.TrimPrefix(content, subject))
 			break
@@ -451,7 +451,7 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 
 func hasExplicitOtherReversalSubject(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
-	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+	for _, subject := range []string{"我的朋友們", "我的朋友", "朋友們", "朋友", "同事們", "同事", "家人們", "家人", "伴侶", "他們", "她們", "他", "她"} {
 		if strings.HasPrefix(prefix, subject) {
 			return true
 		}
