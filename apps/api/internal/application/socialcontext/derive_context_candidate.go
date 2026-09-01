@@ -3,6 +3,8 @@ package socialcontext
 import (
 	"context"
 	"errors"
+	"sort"
+	"time"
 
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
@@ -14,9 +16,11 @@ var (
 )
 
 type ActivityForContext struct {
-	ID      string
-	OwnerID domainidentity.ID
-	Content string
+	ID            string
+	OwnerID       domainidentity.ID
+	Content       string
+	OccurredAt    time.Time
+	ContributedAt time.Time
 }
 
 type ContextActivityReader interface {
@@ -42,7 +46,7 @@ type ContextGenerator interface {
 }
 
 type SocialContextRepository interface {
-	Save(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error
+	SaveIfAbsent(ctx context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error)
 }
 
 type DeriveContextCandidateCommand struct {
@@ -91,8 +95,6 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 		return DerivationOutcome{}, err
 	}
 
-	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
-	byID := make(map[string]ActivityForContext, len(activities))
 	for _, activity := range activities {
 		if activity.OwnerID != requesterID {
 			return DerivationOutcome{}, ErrContextActivityOwnerMismatch
@@ -100,6 +102,18 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 		if _, requested := requestedIDs[activity.ID]; !requested {
 			return DerivationOutcome{}, ErrContextActivityNotRequested
 		}
+	}
+	// Reversal reconciliation represents current state within the requested
+	// derivation batch. Use the shared total chronology so adapter/request order
+	// cannot change current-state semantics, even when timestamps are missing or tie.
+	sort.SliceStable(activities, func(i, j int) bool {
+		left, right := activities[i], activities[j]
+		return ActivityChronologyLess(left.ID, left.OccurredAt, left.ContributedAt, right.ID, right.OccurredAt, right.ContributedAt)
+	})
+
+	signals := make([]domainsocialcontext.SignificanceSignal, 0, len(activities))
+	byID := make(map[string]ActivityForContext, len(activities))
+	for _, activity := range activities {
 		byID[activity.ID] = activity
 		signals = append(signals, domainsocialcontext.SignificanceSignal{ActivityID: activity.ID, Content: activity.Content})
 	}
@@ -112,7 +126,7 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 			continue
 		}
 		activity := byID[decision.ActivityID]
-		eligible = append(eligible, ContextGenerationActivity{ID: activity.ID, Content: activity.Content})
+		eligible = append(eligible, ContextGenerationActivity{ID: activity.ID, Content: decision.DerivationContent})
 		eligibleSources = append(eligibleSources, domainsocialcontext.SourceActivity{ID: activity.ID, Content: activity.Content})
 	}
 	if len(eligible) == 0 {
@@ -123,6 +137,10 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	if err != nil {
 		return DerivationOutcome{}, err
 	}
+	if generated.Meaning == "" && len(generated.Provenance) == 0 {
+		return DerivationOutcome{Status: DerivationSuppressed}, nil
+	}
+
 	candidate, err := domainsocialcontext.NewContextCandidate(generated.Meaning, generated.Provenance)
 	if err != nil {
 		return DerivationOutcome{Status: DerivationRejected, Reason: err}, nil
@@ -131,8 +149,12 @@ func (uc DeriveContextCandidate) Execute(ctx context.Context, command DeriveCont
 	if err != nil {
 		return DerivationOutcome{Status: DerivationRejected, Reason: err}, nil
 	}
-	if err := uc.repository.Save(ctx, requesterID, socialContext); err != nil {
+	inserted, err := uc.repository.SaveIfAbsent(ctx, requesterID, socialContext)
+	if err != nil {
 		return DerivationOutcome{}, err
+	}
+	if !inserted {
+		return DerivationOutcome{Status: DerivationSuppressed}, nil
 	}
 
 	return DerivationOutcome{Status: DerivationPromoted}, nil

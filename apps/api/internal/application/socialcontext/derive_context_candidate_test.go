@@ -29,14 +29,20 @@ func (f *fakeContextGenerator) Generate(_ context.Context, input ContextGenerati
 }
 
 type fakeSocialContextRepository struct {
-	owners []domainidentity.ID
-	saved  []domainsocialcontext.SocialContext
+	owners            []domainidentity.ID
+	saved             []domainsocialcontext.SocialContext
+	duplicate         bool
+	saveIfAbsentCalls int
 }
 
-func (f *fakeSocialContextRepository) Save(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) error {
+func (f *fakeSocialContextRepository) SaveIfAbsent(_ context.Context, ownerID domainidentity.ID, socialContext domainsocialcontext.SocialContext) (bool, error) {
+	f.saveIfAbsentCalls++
+	if f.duplicate {
+		return false, nil
+	}
 	f.owners = append(f.owners, ownerID)
 	f.saved = append(f.saved, socialContext)
-	return nil
+	return true, nil
 }
 
 func TestDeriveContextCandidateOnlySendsEligibleAuthorizedActivityToGenerator(t *testing.T) {
@@ -143,5 +149,25 @@ func TestDeriveContextCandidateRejectsGeneratorProvenanceOutsideEligibleSources(
 	}
 	if outcome.Status != DerivationRejected || outcome.Reason != domainsocialcontext.ErrMissingContextProvenance || len(repository.saved) != 0 {
 		t.Fatalf("outcome = %#v, saved = %d; want rejected provenance without persistence", outcome, len(repository.saved))
+	}
+}
+
+func TestDeriveContextCandidateSuppressesEquivalentPersistedContext(t *testing.T) {
+	ownerID, _ := domainidentity.NewID("owner-1")
+	generator := &fakeContextGenerator{out: GeneratedContext{
+		Meaning:    "近期關注分散式系統的一致性模型、可靠性與工程取捨",
+		Provenance: []string{"activity-1"},
+	}}
+	repository := &fakeSocialContextRepository{duplicate: true}
+	uc := NewDeriveContextCandidate(fakeContextActivityReader{activities: []ActivityForContext{
+		{ID: "activity-1", OwnerID: ownerID, Content: "最近開始深入研究分散式系統設計"},
+	}}, generator, repository)
+
+	outcome, err := uc.Execute(context.Background(), DeriveContextCandidateCommand{RequesterID: "owner-1", ActivityIDs: []string{"activity-1"}})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if outcome.Status != DerivationSuppressed || repository.saveIfAbsentCalls != 1 || len(repository.saved) != 0 {
+		t.Fatalf("outcome = %#v, SaveIfAbsent calls = %d, saved = %d; want suppressed duplicate without persistence", outcome, repository.saveIfAbsentCalls, len(repository.saved))
 	}
 }

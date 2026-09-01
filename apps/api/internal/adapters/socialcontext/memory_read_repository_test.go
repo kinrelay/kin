@@ -16,11 +16,13 @@ func TestMemoryReadRepositoryProjectsOnlyRequestedOwnerValidatedContexts(t *test
 	otherContext := mustPromotedSocialContext(t, "最近對資料視覺化特別有興趣", "activity-2", "最近開始研究資料視覺化工具")
 
 	source := NewMemoryRepository()
-	if err := source.Save(context.Background(), ownerID, ownerContext); err != nil {
-		t.Fatalf("Save(owner) error = %v", err)
+	inserted, err := source.SaveIfAbsent(context.Background(), ownerID, ownerContext)
+	if err != nil || !inserted {
+		t.Fatalf("SaveIfAbsent(owner) = %v, %v; want true, nil", inserted, err)
 	}
-	if err := source.Save(context.Background(), otherOwnerID, otherContext); err != nil {
-		t.Fatalf("Save(other owner) error = %v", err)
+	inserted, err = source.SaveIfAbsent(context.Background(), otherOwnerID, otherContext)
+	if err != nil || !inserted {
+		t.Fatalf("SaveIfAbsent(other owner) = %v, %v; want true, nil", inserted, err)
 	}
 
 	reader := NewMemoryReadRepository(source)

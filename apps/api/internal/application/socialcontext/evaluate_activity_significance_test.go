@@ -5,17 +5,18 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 	domainidentity "github.com/kinrelay/kin/apps/api/internal/domain/identity"
 )
 
 type significanceActivityReaderFake struct {
-	items        []ActivityForSignificance
-	err          error
-	calls        int
-	ownerAsked   domainidentity.ID
-	activityIDs  []string
+	items       []ActivityForSignificance
+	err         error
+	calls       int
+	ownerAsked  domainidentity.ID
+	activityIDs []string
 }
 
 func (f *significanceActivityReaderFake) ListOwnerPrivateNormalized(_ context.Context, ownerID domainidentity.ID, activityIDs []string) ([]ActivityForSignificance, error) {
@@ -39,10 +40,13 @@ func significanceOwner(t *testing.T, value string) domainidentity.ID {
 
 func TestEvaluateActivitySignificanceReadsOnlyRequestedBatchOfRequesterPrivateNormalizedActivities(t *testing.T) {
 	alice := significanceOwner(t, "alice")
+	base := time.Date(2026, 8, 30, 10, 0, 0, 0, time.UTC)
 	reader := &significanceActivityReaderFake{items: []ActivityForSignificance{
-		{ID: "activity-1", OwnerID: alice, Content: "最近持續研究 distributed systems 的 consistency trade-offs"},
-		{ID: "activity-2", OwnerID: alice, Content: "看影片"},
-		{ID: "activity-3", OwnerID: alice, Content: " 最近持續研究 distributed systems 的 consistency trade-offs "},
+		// Deliberately out of occurrence order: application orchestration owns the
+		// chronology contract rather than trusting an adapter's return order.
+		{ID: "activity-3", OwnerID: alice, Content: " 最近持續研究 distributed systems 的 consistency trade-offs ", OccurredAt: base.Add(2 * time.Hour)},
+		{ID: "activity-2", OwnerID: alice, Content: "看影片", OccurredAt: base.Add(time.Hour)},
+		{ID: "activity-1", OwnerID: alice, Content: "最近持續研究 distributed systems 的 consistency trade-offs", OccurredAt: base},
 	}}
 	useCase := NewEvaluateActivitySignificance(reader)
 	batch := []string{"activity-1", "activity-2", "activity-3"}
@@ -60,14 +64,14 @@ func TestEvaluateActivitySignificanceReadsOnlyRequestedBatchOfRequesterPrivateNo
 	if len(decisions) != 3 {
 		t.Fatalf("decision count = %d, want 3", len(decisions))
 	}
-	if decisions[0].Status != domainsocialcontext.SignificanceEligible {
-		t.Fatalf("decision[0] = %#v, want eligible", decisions[0])
+	if decisions[0].ActivityID != "activity-1" || decisions[0].Status != domainsocialcontext.SignificanceSuppressed || decisions[0].Reason != domainsocialcontext.SuppressionDuplicate {
+		t.Fatalf("decision[0] = %#v, want older duplicate suppressed", decisions[0])
 	}
-	if decisions[1].Status != domainsocialcontext.SignificanceSuppressed || decisions[1].Reason != domainsocialcontext.SuppressionLowSignal {
+	if decisions[1].ActivityID != "activity-2" || decisions[1].Status != domainsocialcontext.SignificanceSuppressed || decisions[1].Reason != domainsocialcontext.SuppressionLowSignal {
 		t.Fatalf("decision[1] = %#v, want low-signal suppression", decisions[1])
 	}
-	if decisions[2].Status != domainsocialcontext.SignificanceSuppressed || decisions[2].Reason != domainsocialcontext.SuppressionDuplicate {
-		t.Fatalf("decision[2] = %#v, want duplicate suppression", decisions[2])
+	if decisions[2].ActivityID != "activity-3" || decisions[2].Status != domainsocialcontext.SignificanceEligible {
+		t.Fatalf("decision[2] = %#v, want newest equivalent signal eligible", decisions[2])
 	}
 }
 

@@ -50,20 +50,24 @@ func TestEvaluateSignificanceSuppressesLowSignalContentDeterministically(t *test
 	}
 }
 
-func TestEvaluateSignificanceUsesStableActivityIdentityForDuplicateWinner(t *testing.T) {
-	forward := EvaluateSignificance([]SignificanceSignal{
-		{ActivityID: "activity-b", Content: "Reading   Distributed Systems Papers"},
-		{ActivityID: "activity-a", Content: " reading distributed systems papers "},
-	})
-	reversed := EvaluateSignificance([]SignificanceSignal{
-		{ActivityID: "activity-a", Content: " reading distributed systems papers "},
-		{ActivityID: "activity-b", Content: "Reading   Distributed Systems Papers"},
+func TestEvaluateSignificanceKeepsConciseExplicitReversalEligibleForReconciliation(t *testing.T) {
+	decisions := EvaluateSignificance([]SignificanceSignal{{ActivityID: "activity-stop", Content: "不再研究分散式系統"}})
+	if len(decisions) != 1 {
+		t.Fatalf("decision count = %d, want 1", len(decisions))
+	}
+	if decisions[0].Status != SignificanceEligible || decisions[0].Reason != SuppressionNone {
+		t.Fatalf("reversal decision = %#v, want explicit reversal eligible so derivation can reconcile stale context", decisions[0])
+	}
+}
+
+func TestEvaluateSignificanceUsesNewestOccurrenceForDuplicateWinner(t *testing.T) {
+	decisions := EvaluateSignificance([]SignificanceSignal{
+		{ActivityID: "activity-a", Content: "Reading   Distributed Systems Papers"},
+		{ActivityID: "activity-b", Content: " reading distributed systems papers "},
 	})
 
-	assertDuplicateDecisionByID(t, forward, "activity-a", SignificanceEligible, SuppressionNone)
-	assertDuplicateDecisionByID(t, forward, "activity-b", SignificanceSuppressed, SuppressionDuplicate)
-	assertDuplicateDecisionByID(t, reversed, "activity-a", SignificanceEligible, SuppressionNone)
-	assertDuplicateDecisionByID(t, reversed, "activity-b", SignificanceSuppressed, SuppressionDuplicate)
+	assertDuplicateDecisionByID(t, decisions, "activity-a", SignificanceSuppressed, SuppressionDuplicate)
+	assertDuplicateDecisionByID(t, decisions, "activity-b", SignificanceEligible, SuppressionNone)
 }
 
 func TestEvaluateSignificancePreservesInputOrderAndActivityIdentity(t *testing.T) {
