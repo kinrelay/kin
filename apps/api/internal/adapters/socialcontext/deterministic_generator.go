@@ -233,7 +233,11 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 		// Explicit reversals retire their topic before a later bare abandonment
 		// chooses the nearest remaining antecedent; the bare abandonment itself is
 		// handled above because its target is context-dependent.
-		negatedContinuation := isNegatedContinuationForTopics(clause, localTopics)
+		continuationTopics := append([]string(nil), localTopics...)
+		for _, signal := range batchState {
+			continuationTopics = append(continuationTopics, signal.topic)
+		}
+		negatedContinuation := isNegatedContinuationForTopics(clause, continuationTopics)
 		distributedReversed := hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals)
 		marathonReversed := hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals)
 		if distributedReversed {
