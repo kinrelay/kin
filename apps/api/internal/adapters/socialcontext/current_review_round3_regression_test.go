@@ -64,7 +64,7 @@ func TestDeterministicGeneratorRejectsSpectatorMarathonLogistics(t *testing.T) {
 	}
 }
 
-func TestDeterministicGeneratorAppliesExplicitReversalBeforeBareAbandonment(t *testing.T) {
+func TestDeterministicGeneratorKeepsExplicitReversalAsLocalBareAbandonmentBarrier(t *testing.T) {
 	generator := NewDeterministicGenerator()
 	got, err := generator.Generate(context.Background(), appsc.ContextGenerationInput{Activities: []appsc.ContextGenerationActivity{
 		{ID: "activity-db", Content: "最近開始研究分散式系統"},
@@ -74,8 +74,8 @@ func TestDeterministicGeneratorAppliesExplicitReversalBeforeBareAbandonment(t *t
 	if err != nil {
 		t.Fatalf("Generate() error = %v", err)
 	}
-	if got.Meaning != "" || len(got.Provenance) != 0 {
-		t.Fatalf("Generate() = %#v, want explicit marathon reversal applied before bare abandonment binds to remaining distributed-systems antecedent", got)
+	if !strings.Contains(got.Meaning, "分散式系統") || strings.Contains(got.Meaning, "耐力運動") {
+		t.Fatalf("Generate() = %#v, want explicit marathon reversal to block the later bare abandonment from jumping back to older distributed-systems state", got)
 	}
 }
 
