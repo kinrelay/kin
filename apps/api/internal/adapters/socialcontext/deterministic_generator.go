@@ -156,6 +156,7 @@ func summarizeSignalsWithBarrier(content string) ([]string, bool) {
 		// Reconcile each clause against the topic state that exists at that point
 		// in chronology. Future reversals must not erase an antecedent before an
 		// intervening objectless abandonment has had a chance to bind to it.
+		negatedContinuation := isNegatedContinuationForTopics(clause, topics)
 		distributedReversed := hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals)
 		marathonReversed := hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals)
 		if distributedReversed {
@@ -193,7 +194,7 @@ func summarizeSignalsWithBarrier(content string) ([]string, bool) {
 		}
 
 		switch {
-		case recognizedClause, distributedReversed, marathonReversed:
+		case recognizedClause, distributedReversed, marathonReversed, negatedContinuation:
 			unsupportedAntecedentBarrier = false
 		case strings.TrimSpace(clause) != "":
 			unsupportedAntecedentBarrier = true
@@ -232,6 +233,7 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 		// Explicit reversals retire their topic before a later bare abandonment
 		// chooses the nearest remaining antecedent; the bare abandonment itself is
 		// handled above because its target is context-dependent.
+		negatedContinuation := isNegatedContinuationForTopics(clause, localTopics)
 		distributedReversed := hasTopicReversal([]string{clause}, distributedSystemsMarkers, distributedSystemsReversals)
 		marathonReversed := hasTopicReversal([]string{clause}, marathonMarkers, marathonReversals)
 		if distributedReversed {
@@ -244,8 +246,8 @@ func compoundObjectlessAbandonmentTopics(content string, recognized []recognized
 		}
 
 		clauseTopics := summarizeSignals(clause)
-		if len(clauseTopics) == 0 && !distributedReversed && !marathonReversed {
-			localUnsupportedAntecedent = true
+		if len(clauseTopics) == 0 {
+			localUnsupportedAntecedent = !negatedContinuation
 		}
 		for _, topic := range clauseTopics {
 			localTopics = append(localTopics, topic)
@@ -359,7 +361,7 @@ func splitCompoundActions(clause string) []string {
 		return []string{clause}
 	}
 	left := strings.TrimSpace(clause[:boundaryIndex])
-	right := strings.TrimSpace(clause[boundaryIndex+boundaryLength:])
+	right := trimOwnerActionSubject(strings.TrimSpace(clause[boundaryIndex+boundaryLength:]))
 	rightSegments := splitCompoundActions(right)
 	result := make([]string, 0, 1+len(rightSegments))
 	if left != "" {
@@ -403,6 +405,7 @@ func startsSupportedAction(content string) bool {
 			break
 		}
 	}
+	content = trimOwnerActionSubject(content)
 	return hasAnyPrefix(content,
 		"最近開始", "開始", "持續",
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
@@ -415,6 +418,14 @@ func startsSupportedAction(content string) bool {
 		"不會取消參賽", "不會取消參加", "不願取消參賽", "不願取消參加",
 		"沒有取消參賽", "沒有取消參加", "從未取消參賽", "從未取消參加",
 	)
+}
+
+func trimOwnerActionSubject(content string) string {
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "我") && !strings.HasPrefix(content, "我的") {
+		return strings.TrimSpace(strings.TrimPrefix(content, "我"))
+	}
+	return content
 }
 
 func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string) bool {
@@ -485,6 +496,44 @@ func hasAffirmativeReversalOccurrence(content string, patterns ...string) bool {
 func isNegatedReversalOccurrence(prefix string) bool {
 	prefix = strings.TrimSpace(prefix)
 	return strings.HasSuffix(prefix, "不會") || strings.HasSuffix(prefix, "不想") || strings.HasSuffix(prefix, "不願") || strings.HasSuffix(prefix, "沒有") || strings.HasSuffix(prefix, "從未") || strings.HasSuffix(prefix, "不再")
+}
+
+func isNegatedContinuationForTopics(clause string, topics []string) bool {
+	for _, topic := range topics {
+		switch topic {
+		case distributedSystemsTopic:
+			if hasNegatedTopicContinuation(clause, distributedSystemsMarkers, distributedSystemsReversals) {
+				return true
+			}
+		case marathonTopic:
+			if hasNegatedTopicContinuation(clause, marathonMarkers, marathonReversals) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasNegatedTopicContinuation(clause string, topicMarkers, reversalPatterns []string) bool {
+	if !hasAnySubstring(clause, topicMarkers...) {
+		return false
+	}
+	for _, pattern := range reversalPatterns {
+		searchFrom := 0
+		for searchFrom < len(clause) {
+			relativeIndex := strings.Index(clause[searchFrom:], pattern)
+			if relativeIndex < 0 {
+				break
+			}
+			index := searchFrom + relativeIndex
+			prefix := clause[:index]
+			if isNegatedReversalOccurrence(prefix) && !hasExplicitOtherReversalSubject(prefix) {
+				return true
+			}
+			searchFrom = index + len(pattern)
+		}
+	}
+	return false
 }
 
 func reversalObject(suffix string) string {
