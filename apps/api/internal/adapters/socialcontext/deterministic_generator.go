@@ -73,7 +73,8 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 
 		seenInActivity := make(map[string]struct{}, 2)
 		recognizedInActivity := false
-		for _, topic := range summarizeSignals(activity.Content) {
+		activityTopics, trailingUnsupportedBarrier := summarizeSignalsWithBarrier(activity.Content)
+		for _, topic := range activityTopics {
 			if _, seen := seenInActivity[topic]; seen {
 				continue
 			}
@@ -83,6 +84,10 @@ func (DeterministicGenerator) Generate(_ context.Context, input applicationsocia
 		}
 
 		switch {
+		case trailingUnsupportedBarrier:
+			// The nearest semantic antecedent is determined by the final clause, not
+			// by whether any earlier clause in this Activity produced a supported topic.
+			unsupportedAntecedentBarrier = true
 		case recognizedInActivity:
 			unsupportedAntecedentBarrier = false
 		case len(reversed) > 0:
@@ -131,6 +136,11 @@ func summarizeSignal(content string) (string, bool) {
 }
 
 func summarizeSignals(content string) []string {
+	topics, _ := summarizeSignalsWithBarrier(content)
+	return topics
+}
+
+func summarizeSignalsWithBarrier(content string) ([]string, bool) {
 	clauses := splitSignalClauses(content)
 	topics := make([]string, 0, 2)
 	unsupportedAntecedentBarrier := false
@@ -189,7 +199,7 @@ func summarizeSignals(content string) []string {
 			unsupportedAntecedentBarrier = true
 		}
 	}
-	return topics
+	return topics, unsupportedAntecedentBarrier
 }
 
 func compoundObjectlessAbandonmentTopics(content string, recognized []recognizedSignal) []string {
