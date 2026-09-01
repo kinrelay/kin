@@ -9,9 +9,14 @@ import (
 )
 
 // CurrentStateRepository owns the atomic consistency boundary for one owner's
-// semantic Social Context lifecycle. A nil replacement means retire; an older or
-// equal occurrence is a deterministic no-op.
+// semantic Social Context lifecycle.
 type CurrentStateRepository interface {
+	ReconcileOwnerCurrentState(
+		ctx context.Context,
+		ownerID domainidentity.ID,
+		mutations []domainsocialcontext.CurrentStateMutation,
+	) (int, error)
+
 	ReconcileCurrentState(
 		ctx context.Context,
 		ownerID domainidentity.ID,
