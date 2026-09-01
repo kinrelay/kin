@@ -7,24 +7,16 @@ import (
 	domainsocialcontext "github.com/kinrelay/kin/apps/api/internal/domain/socialcontext"
 )
 
-type OwnerCurrentStateRepository interface {
-	ReconcileOwnerCurrentState(
-		ctx context.Context,
-		ownerID domainidentity.ID,
-		mutations []domainsocialcontext.CurrentStateMutation,
-	) (int, error)
-}
-
 type ReconcileCurrentSocialContextCommand struct {
 	OwnerID   string
 	Mutations []domainsocialcontext.CurrentStateMutation
 }
 
 type ReconcileCurrentSocialContext struct {
-	repository OwnerCurrentStateRepository
+	repository CurrentStateRepository
 }
 
-func NewReconcileCurrentSocialContext(repository OwnerCurrentStateRepository) ReconcileCurrentSocialContext {
+func NewReconcileCurrentSocialContext(repository CurrentStateRepository) ReconcileCurrentSocialContext {
 	return ReconcileCurrentSocialContext{repository: repository}
 }
 
