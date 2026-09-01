@@ -396,6 +396,13 @@ func nextActionBoundary(content string) (int, int) {
 }
 
 func startsSupportedAction(content string) bool {
+	content = strings.TrimSpace(content)
+	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+		if strings.HasPrefix(content, subject) {
+			content = strings.TrimSpace(strings.TrimPrefix(content, subject))
+			break
+		}
+	}
 	return hasAnyPrefix(content,
 		"最近開始", "開始", "持續",
 		"後來不再", "後來停止", "後來沒有", "後來不想", "後來放棄", "後來取消",
