@@ -448,6 +448,11 @@ func hasExplicitOtherReversalSubject(prefix string) bool {
 		if strings.HasPrefix(prefix, subject) {
 			return true
 		}
+		for _, boundary := range []string{"但是", "後來", "之後", "然後", "以及", "並且", "同時", "並", "且", "而", "但", "後"} {
+			if strings.HasSuffix(prefix, boundary+subject) {
+				return true
+			}
+		}
 	}
 	return false
 }
