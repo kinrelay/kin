@@ -380,7 +380,7 @@ func nextActionBoundary(content string) (int, int) {
 			}
 			index := searchFrom + relative
 			left := strings.TrimSpace(content[:index])
-			if boundary == "後來" && (left == "" || left == "我") {
+			if boundary == "後來" && (left == "" || left == "我" || hasExplicitOtherReversalSubject(left)) {
 				searchFrom = index + len(boundary)
 				continue
 			}
@@ -420,14 +420,15 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 					break
 				}
 				index := searchFrom + relativeIndex
-				if isNegatedReversalOccurrence(clause[:index]) {
+				prefix := clause[:index]
+				if hasExplicitOtherReversalSubject(prefix) || isNegatedReversalOccurrence(prefix) {
 					searchFrom = index + len(pattern)
 					continue
 				}
 				suffix := strings.TrimSpace(clause[index+len(pattern):])
 				object := reversalObject(suffix)
 				if isObjectlessReversal(object) {
-					preposedObject := reversalPreposedObject(clause[:index])
+					preposedObject := reversalPreposedObject(prefix)
 					if preposedObject == "" || reversalObjectTargetsTopic(preposedObject, topicMarkers) {
 						return true
 					}
@@ -436,6 +437,16 @@ func hasTopicReversal(clauses []string, topicMarkers, reversalPatterns []string)
 				}
 				searchFrom = index + len(pattern)
 			}
+		}
+	}
+	return false
+}
+
+func hasExplicitOtherReversalSubject(prefix string) bool {
+	prefix = strings.TrimSpace(prefix)
+	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+		if strings.HasPrefix(prefix, subject) {
+			return true
 		}
 	}
 	return false
