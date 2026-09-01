@@ -31,28 +31,32 @@ Ownership acquisition metadata 與 latest state 分離。每段 continuous activ
 - 後續 active heartbeat / progress 必須重複完整 state，並引用同一 `lease_anchor: <claim-comment-id-or-url>`；
 - sparse heartbeat 不得取代完整 current state，也不得改變 lease acquisition order。
 
-## Revoked anchor set
+## Validated takeover revocation
 
-Arbitration 不只歸約每個 worker 的 latest state，也必須先建立 repository issue scope 內的 **revoked anchor set**。
+Arbitration 不只歸約每個 worker 的 latest state，也必須處理已完成 takeover 所產生的 **revoked anchor set**；但 revocation 不能只因 comment 出現 `takeover_of_anchor` 就成立。
 
-任何 trusted coordination comment 若包含：
+`takeover_of_anchor` 只有在 arbiter 能從同一 issue 的 trusted GitHub history 客觀驗證下列條件時，才能加入 revoked anchor set：
 
-```text
-takeover_of_anchor: <old-anchor-id-or-url>
-```
+1. takeover worker 已先發布新的 bootstrap `claim: active`，重新抓取 GitHub server metadata，取得有效且未被 revoked 的新 lease anchor；
+2. `takeover_of_anchor` 指向同一 issue ownership history 中實際存在的 old anchor；
+3. old anchor 原本屬於 `takeover_from` 指定的 `(agent, session)`；
+4. old lease 已依 GitHub server time terminal expired，或原 owner 已明確 release / inactive / stale；
+5. stale-takeover 的 recent-activity hold 已結束，且 inactivity preflight 已客觀通過；
+6. takeover worker 以新 anchor 完成 post-claim arbitration，且仍是唯一合法 owner；
+7. tombstone comment 本身由 trusted actor 發布，引用該新 anchor，且 `takeover_from` / `takeover_of_anchor` 與已驗證 history 一致。
 
-即為該 old anchor 的永久 revocation tombstone。只要 takeover 已完成並留下此 metadata，所有 arbiter 在處理任何 worker state 前，都必須先把 `takeover_of_anchor` 加入 revoked anchor set；之後凡引用該 anchor 的 heartbeat、progress、release 或其他 late state 一律忽略，不得復活 ownership，即使它的 GitHub `created_at` 較新。
+上述任一條件無法驗證時，該 `takeover_of_anchor` 只能視為無效 takeover metadata：不得加入 revoked anchor set、不得撤銷 old anchor，也不得改變仍有效 ownership。Claimant 自填的 `takeover_reason` 或 preflight 宣告只能當說明，不能取代 GitHub evidence。
 
-Revocation 是跨 worker reduction：不能只看舊 owner 自己的 latest comment。Trusted takeover tombstone 一旦成立，在同一 issue ownership history 中永久有效；除非該 takeover comment 本身被 GitHub 刪除/失去 trust，否則後續 arbitration 都必須保留此 evidence。
+只有通過上述驗證的 tombstone 才是永久 revocation evidence。所有 arbiter 必須在完成 candidate takeover validation 後建立 revoked anchor set，再進行 per-worker latest-state reduction；之後凡引用已驗證 revoked anchor 的 heartbeat、progress、release 或其他 late state一律忽略，不得復活 ownership，即使其 GitHub `created_at` 較新。
 
-只有 latest trusted comment 同時為 `claim: active`、引用未被 revoked 的有效 anchor，且 lease 未過期，worker 才算 live claim。Release / inactive / stale / done / blocked、lease expiration，以及完成 takeover 都是不可逆 lease boundary。原 session 若之後重新工作，必須發布新 claim、取得新 anchor並重新 arbitration。
+只有 latest trusted comment 同時為 `claim: active`、引用未被 revoked 的有效 anchor，且 lease 未過期，worker 才算 live claim。Release / inactive / stale / done / blocked、lease expiration，以及完成且通過驗證的 takeover 都是不可逆 lease boundary。原 session 若之後重新工作，必須發布新 claim、取得新 anchor並重新 arbitration。
 
 ## Preflight
 
 開始 implementation ownership 前，agent 必須先：
 
 1. 完整讀取 issue AC/non-goals並確認 active roadmap eligibility；
-2. 檢查最新 trusted coordination comments並建立 revoked anchor set；
+2. 檢查最新 trusted coordination comments、既有 validated takeover evidence 與 revoked anchor set；
 3. 檢查 live claims；
 4. 檢查 linked / active implementation PR；
 5. 檢查 branch commits、CI、review與可歸因其他 session 的 activity；
@@ -110,9 +114,9 @@ next: <next concrete action>
 發布 `claim: active` 不代表立即取得 ownership。在建立 branch、PR、commit 或修改程式碼前：
 
 1. 重新抓最新 trusted coordination comments與剛發布 claim 的 server metadata；
-2. 先建立完整 revoked anchor set；
+2. 驗證 candidate takeover tombstones，只把通過 `Validated takeover revocation` 全部條件的 old anchors 加入 revoked anchor set；
 3. 對每個 `(agent, session)` 做 latest-state reduction；
-4. 丟棄引用 revoked anchor、released/inactive/stale/done/blocked、或已過期的 state；
+4. 丟棄引用 validated revoked anchor、released/inactive/stale/done/blocked、或已過期的 state；
 5. 對剩餘衝突 live claims解析 immutable server-side lease anchor；
 6. anchor `created_at` 較早者為唯一 winner；相同時比較 comment id；無法排序時 fail closed；
 7. winner 再確認自己仍是唯一有效 owner後才能 mutation；
@@ -147,7 +151,15 @@ Material transition 至少使用：
 
 Lease 超過 8 小時即 terminal expired；舊 anchor 後續 heartbeat不得復活。Takeover preflight仍須檢查 linked PR、branch commits、review replies與 issue discussion，辨識是否有可歸因原 owner、但漏寫 heartbeat 的近期 mutation。若存在，可暫緩最多一個 2 小時 heartbeat cadence；純 CI/bot/他人 activity只是 context，不是 veto。
 
-只有 recent-activity hold 結束、inactivity preflight 通過並確認 safe 後，新 agent 才可發布 takeover claim並取得新 anchor。完成 takeover 時必須再留下 machine-readable revocation evidence：
+只有 recent-activity hold 結束、inactivity preflight 通過並確認 safe 後，新 agent 才可開始 takeover。Takeover 使用兩階段流程，不能在尚未取得 server comment id/url 前預填新 anchor：
+
+1. 先發布一般 bootstrap `claim: active` comment，不填 `lease_anchor`；
+2. 重新抓取該 comment 的 GitHub server `created_at` 與 comment id/url，固定為新 lease anchor；
+3. 重新抓全部 trusted coordination history，依新 anchor完成 post-claim arbitration；若不是唯一合法 winner，立即 release/stale並停止；
+4. 只有 winner 才發布完整 takeover tombstone/progress comment，引用剛取得的新 `lease_anchor` 與 old anchor；
+5. arbiter 再依 `Validated takeover revocation` 驗證 old anchor ownership、terminal expiry、recent-activity hold / inactivity preflight 與 takeover identity；驗證成功後才永久 revoke old anchor。
+
+完成 takeover 的 comment 格式：
 
 ```text
 <!-- agent-coordination:v1 -->
@@ -155,7 +167,7 @@ agent: <new-agent>
 session: <new-session>
 status: implementing
 claim: active
-lease_anchor: <new-anchor-id-or-url>
+lease_anchor: <new-bootstrap-claim-comment-id-or-url>
 takeover_of_anchor: <old-anchor-id-or-url>
 takeover_from: <old-agent>/<old-session>
 takeover_reason: lease-expired-and-preflight-safe
@@ -165,7 +177,7 @@ heartbeat: <ISO-8601 UTC timestamp>
 next: <next concrete action>
 ```
 
-此 `takeover_of_anchor` comment 是永久 tombstone；任何 future arbiter 必須先套用 revocation，再做 latest-state reduction。尚在 hold 期間不得 adoption existing PR 或推送既有 branch。
+此 tombstone 只有通過 validation 才是永久 revocation evidence；無效或競爭中的 takeover comment 不得撤銷 old anchor。尚在 recent-activity hold 期間不得 adoption existing PR 或推送既有 branch。
 
 ## Existing PR wins / adoption
 
@@ -174,7 +186,7 @@ Issue 已有 active implementation PR 時優先沿用 existing PR，不另開 du
 - 有有效 live owner：新 claimant退出；
 - 有尚未清除的 human-only `status: blocked`：不得選擇/adoption；
 - author / trusted owner 明確 handoff、release或 inactive：eligible agent可 claim existing PR並完成 arbitration；
-- owner expired/stale：必須先完成 stale-takeover preflight與 hold，完成 takeover時以 `takeover_of_anchor` revoke舊 lease，才能 adoption；
+- owner expired/stale：必須先完成 stale-takeover preflight與 hold，再依兩階段 takeover 流程取得新 anchor並產生 validated `takeover_of_anchor` revocation，才能 adoption；
 - 沒有 coordination metadata：不得視為 ownerless；先把 PR author / branch owner視為可能 active，只有明確 handoff/consent，或超過 8 小時且完整 inactivity preflight通過後才可 adoption；
 - branch不可寫或 ownership無法安全驗證：記錄 blocker/release，不得用 duplicate PR規避。
 
@@ -196,7 +208,7 @@ Autopilot 仍須服從 roadmap、dependencies與 issue priority，依序：
 
 ## Release claim
 
-下列情況 terminate / release current lease：PR merged、issue closed、PR closed without merge、implementation abandoned、PR/branch superseded、lease expired/completed takeover，或進入 human-only blocked。
+下列情況 terminate / release current lease：PR merged、issue closed、PR closed without merge、implementation abandoned、PR/branch superseded、lease expired/completed validated takeover，或進入 human-only blocked。
 
 一般完成：
 
@@ -213,7 +225,7 @@ heartbeat: <ISO-8601 UTC timestamp>
 next: <next eligible issue or none>
 ```
 
-Takeover completion 不應由舊 owner自行 release來建立 revocation；新的 trusted owner必須用 `takeover_of_anchor` tombstone明確撤銷舊 anchor。
+Takeover completion 不應由舊 owner自行 release來建立 revocation；新的 trusted owner必須用通過驗證的 `takeover_of_anchor` tombstone明確撤銷舊 anchor。
 
 若 PR closed/abandoned/superseded但 issue未完成，使用 `claim: released` 並寫 `next: issue remains eligible for reassignment`。Expired/taken-over anchor不得再次使用。
 
@@ -221,4 +233,4 @@ Human-only blocker使用 `status: blocked`、`claim: inactive`並記錄所需輸
 
 ## Rules for manual Chat sessions
 
-Manual Chat 在 coding 前也必須讀取最新 coordination history、建立 revoked anchor set，並遵守相同 trusted-author validation、server-side anchor、state reduction、post-claim arbitration與 stale takeover。看到 `side-project-autopilot` live claim應避免撞工；Autopilot看到 `manual-chat` live claim同樣必須跳過，除非依規則確定失效。
+Manual Chat 在 coding 前也必須讀取最新 coordination history、驗證 candidate takeover tombstones並建立 revoked anchor set，並遵守相同 trusted-author validation、server-side anchor、state reduction、post-claim arbitration與 stale takeover。看到 `side-project-autopilot` live claim應避免撞工；Autopilot看到 `manual-chat` live claim同樣必須跳過，除非依規則確定失效。
