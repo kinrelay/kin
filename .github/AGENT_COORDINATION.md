@@ -53,15 +53,29 @@ Arbitration 不只歸約每個 worker 的 latest state，也必須處理已完�
 
 Release、inactive、stale、done、blocked、lease expiration 與 validated takeover 都是 **anchor-level terminal boundary**，不能只靠「每個 worker 最新一筆 comment」判斷。Arbiter 在 latest-state reduction 前必須依 GitHub server order 重播同一 issue 的 trusted coordination history，建立 immutable **terminal anchor set**：
 
-- trusted owner 對有效 `lease_anchor` 發布 `claim: released` / `inactive`，或 `status: stale` / `done` / `blocked` 時，該 anchor 立即加入 terminal anchor set；
+- terminal comment 只有在其 `(agent, session)` 與該 `lease_anchor` 的原始 trusted owner 完全一致時才有效；其他 trusted worker 即使知道 anchor id/url，也不得用 `released` / `inactive` / `stale` / `done` / `blocked` terminalize 別人的 lease；owner-to-anchor binding 無法驗證時忽略該 terminal metadata並 fail closed；
+- trusted owner 對自己有效的 `lease_anchor` 發布 `claim: released` / `inactive`，或 `status: stale` / `done` / `blocked` 時，該 anchor 立即加入 terminal anchor set；
 - validated takeover 的 old anchor 同時加入 revoked anchor set 與 terminal anchor set；
 - 對仍 active 的同一 anchor，只有前一筆已接受的完整 active snapshot 尚未超過 8 小時時，下一筆 active heartbeat 才能續期；若 GitHub server `created_at` 顯示兩筆可接受 snapshot 之間已超過 8 小時，該 anchor 在後一筆 comment 被處理前就已 terminal expired，必須先加入 terminal anchor set，後一筆及更晚的 active heartbeat 一律忽略；
 - bootstrap claim 自身的 server `created_at` 是第一個 accepted active timestamp；client-provided `heartbeat`、`claimed_at` 或 comment edit time 不得改寫 terminal 判定；
 - terminal anchor set 一旦在目前 GitHub history 中成立，後續任何引用同一 anchor 的 active/progress comment 都不得把它移除或復活。原 session 若要恢復工作，只能發布新的 bootstrap claim，取得全新的 anchor並重新 arbitration。
 
-因此 reduction 順序固定為：驗證 takeover → 建立 revoked anchor set → 依 server chronology 建立 terminal anchor set → 才對非 terminal / 非 revoked anchor 做 per-worker latest-state reduction。這可避免 delayed heartbeat 在 release 或 lease expiry 之後以較新的 comment timestamp 復活舊 ownership。
+因此 reduction 順序固定為：驗證 takeover → 建立 revoked anchor set → 驗證 terminal comment 的 owner-to-anchor binding → 依 server chronology 建立 terminal anchor set → 才對非 terminal / 非 revoked anchor 做 per-worker latest-state reduction。這可避免 delayed heartbeat 在 release 或 lease expiry 之後以較新的 comment timestamp 復活舊 ownership，也避免另一個 trusted worker 偽造 terminal state撤銷 live owner。
 
 只有 latest trusted comment 同時為 `claim: active`、引用未 terminal / 未 revoked 的有效 anchor，且 lease 未過期，worker 才算 live claim。
+
+### Coordination-history integrity boundary
+
+本 protocol 的 canonical storage 是 GitHub issue comments，因此「immutable」描述的是 arbitration semantics，不宣稱 GitHub comment 本身具有 storage-level WORM 保證。Trusted repository writer 若刻意 edit/delete canonical coordination history，已超出本 protocol 用來防止 session race / stale takeover 的 threat model；文件不得假裝 GitHub 提供不存在的 undeletable-comment primitive。
+
+Arbiter 仍必須對可偵測的 history integrity loss fail closed：
+
+- coordination comment 若 `updated_at` 顯示在建立後曾被 edit，不得把 edit 後新增或改寫的 ownership-critical metadata（`agent`、`session`、`claim`、`lease_anchor`、`takeover_*`、terminal status）當作比原 server record更強的 evidence；無法驗證原 state 時，不授予新的 implementation ownership；
+- latest active state 引用的 anchor comment若不存在、無法讀取、author trust無法重驗，或 anchor owner與 state `(agent, session)` 不一致，該 active state無效；不得用 later heartbeat自行重建 anchor；
+- candidate takeover / reassignment 若依賴已不存在或無法驗證的 release、terminal、handoff evidence，必須停止 automation並要求 trusted human重新建立可驗證 canonical state；不得因 terminal evidence消失就把舊 anchor推定為重新 active；
+- 對 validated takeover，`takeover_of_anchor` / `takeover_from` / new anchor 必須持續能由現存 trusted history交叉驗證；證據鏈缺失時 fail closed，而不是回退到較早 active snapshot。
+
+若 repository 未來需要抵抗 trusted maintainer 主動刪除全部相關 GitHub history，應另行設計 append-only / externally attested coordination ledger；這屬於不同的 storage-integrity threat model，不在 issue-comment coordination PR 的 scope內。
 
 ## Preflight
 
