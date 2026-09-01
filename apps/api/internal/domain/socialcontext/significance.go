@@ -103,17 +103,19 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 	if currentIndex <= 0 || len(decisions) == 0 || decisions[len(decisions)-1].Status != SignificanceSuppressed {
 		return false
 	}
-	previousContent := normalizeSignificanceContent(signals[currentIndex-1].Content)
-	if !isSupportedSignificanceAntecedent(previousContent) {
+	previousTopic := supportedSignificanceAntecedentTopic(normalizeSignificanceContent(signals[currentIndex-1].Content))
+	if previousTopic == "" {
 		return true
 	}
 	for index := currentIndex - 2; index >= 0; index-- {
 		if decisions[index].Status != SignificanceEligible {
 			continue
 		}
-		if isSupportedSignificanceAntecedent(normalizeSignificanceContent(signals[index].Content)) {
-			return true
+		eligibleTopic := supportedSignificanceAntecedentTopic(normalizeSignificanceContent(signals[index].Content))
+		if eligibleTopic == "" {
+			continue
 		}
+		return eligibleTopic != previousTopic
 	}
 	return false
 }
@@ -136,6 +138,10 @@ func independentSupportedSignificanceContent(content string) string {
 }
 
 func isSupportedSignificanceAntecedent(content string) bool {
+	return supportedSignificanceAntecedentTopic(content) != ""
+}
+
+func supportedSignificanceAntecedentTopic(content string) string {
 	for _, prefix := range []string{
 		"最近開始深入研究分散式系統", "開始深入研究分散式系統", "持續深入研究分散式系統",
 		"最近開始研究分散式系統", "開始研究分散式系統", "持續研究分散式系統",
@@ -143,7 +149,7 @@ func isSupportedSignificanceAntecedent(content string) bool {
 		"最近開始研究一致性模型", "開始研究一致性模型", "持續研究一致性模型",
 	} {
 		if strings.HasPrefix(content, prefix) && !isDistributedSystemsSignificanceRoleDutyObject(content) {
-			return true
+			return "distributed-systems"
 		}
 	}
 	for _, prefix := range []string{"最近開始準備", "開始準備", "持續準備", "最近開始訓練", "開始訓練", "持續訓練", "完成第一次全程"} {
@@ -152,10 +158,10 @@ func isSupportedSignificanceAntecedent(content string) bool {
 		}
 		target := strings.TrimSpace(strings.TrimPrefix(content, prefix))
 		if isMarathonSignificanceParticipationObject(target) {
-			return true
+			return "marathon"
 		}
 	}
-	return false
+	return ""
 }
 
 // canonicalActivityIDs treats the input order as occurrence chronology and keeps
@@ -367,6 +373,8 @@ func splitSignificanceCompoundActions(clause string) []string {
 	if clause == "" {
 		return nil
 	}
+	bestIndex := -1
+	bestLength := 0
 	for _, boundary := range []string{"但是", "並且", "同時", "但", "並", "且", "而"} {
 		searchFrom := 0
 		for searchFrom < len(clause) {
@@ -376,18 +384,23 @@ func splitSignificanceCompoundActions(clause string) []string {
 			}
 			index := searchFrom + relativeIndex
 			right := strings.TrimSpace(clause[index+len(boundary):])
-			if startsSignificanceAction(right) {
-				left := strings.TrimSpace(clause[:index])
-				rightClauses := splitSignificanceCompoundActions(right)
-				if left == "" {
-					return rightClauses
-				}
-				return append([]string{left}, rightClauses...)
+			if startsSignificanceAction(right) && (bestIndex < 0 || index < bestIndex || (index == bestIndex && len(boundary) > bestLength)) {
+				bestIndex = index
+				bestLength = len(boundary)
 			}
 			searchFrom = index + len(boundary)
 		}
 	}
-	return []string{clause}
+	if bestIndex < 0 {
+		return []string{clause}
+	}
+	left := strings.TrimSpace(clause[:bestIndex])
+	right := strings.TrimSpace(clause[bestIndex+bestLength:])
+	rightClauses := splitSignificanceCompoundActions(right)
+	if left == "" {
+		return rightClauses
+	}
+	return append([]string{left}, rightClauses...)
 }
 
 func isNegatedSignificanceReversal(prefix string) bool {
