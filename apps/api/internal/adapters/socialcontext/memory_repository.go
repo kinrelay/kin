@@ -55,33 +55,65 @@ func (r *MemoryRepository) SaveIfAbsent(_ context.Context, ownerID domainidentit
 	return true, nil
 }
 
-func (r *MemoryRepository) ReconcileCurrentState(
+func (r *MemoryRepository) ReconcileOwnerCurrentState(
 	_ context.Context,
 	ownerID domainidentity.ID,
-	semanticID domainsocialcontext.SemanticIdentity,
-	occurredAt time.Time,
-	replacement *domainsocialcontext.SocialContext,
-) (bool, error) {
-	normalizedSemanticID, err := domainsocialcontext.NewSemanticIdentity(semanticID.String())
-	if err != nil {
-		return false, err
+	mutations []domainsocialcontext.CurrentStateMutation,
+) (int, error) {
+	normalized := make([]domainsocialcontext.CurrentStateMutation, 0, len(mutations))
+	for _, mutation := range mutations {
+		semanticID, err := domainsocialcontext.NewSemanticIdentity(mutation.SemanticID.String())
+		if err != nil {
+			return 0, err
+		}
+		mutation.SemanticID = semanticID
+		normalized = append(normalized, mutation)
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := currentStateKey{ownerID: ownerID, semanticID: normalizedSemanticID}
-	if current, exists := r.currentStates[key]; exists && !occurredAt.After(current.occurredAt) {
-		return false, nil
+	next := make(map[currentStateKey]storedCurrentState, len(r.currentStates)+len(normalized))
+	for key, state := range r.currentStates {
+		next[key] = state
 	}
 
-	var storedReplacement *domainsocialcontext.SocialContext
-	if replacement != nil {
-		copy := *replacement
-		storedReplacement = &copy
+	changed := 0
+	for _, mutation := range normalized {
+		key := currentStateKey{ownerID: ownerID, semanticID: mutation.SemanticID}
+		if current, exists := next[key]; exists && !mutation.OccurredAt.After(current.occurredAt) {
+			continue
+		}
+
+		var storedReplacement *domainsocialcontext.SocialContext
+		if mutation.Replacement != nil {
+			copy := *mutation.Replacement
+			storedReplacement = &copy
+		}
+		next[key] = storedCurrentState{occurredAt: mutation.OccurredAt, context: storedReplacement}
+		changed++
 	}
-	r.currentStates[key] = storedCurrentState{occurredAt: occurredAt, context: storedReplacement}
-	return true, nil
+
+	r.currentStates = next
+	return changed, nil
+}
+
+func (r *MemoryRepository) ReconcileCurrentState(
+	ctx context.Context,
+	ownerID domainidentity.ID,
+	semanticID domainsocialcontext.SemanticIdentity,
+	occurredAt time.Time,
+	replacement *domainsocialcontext.SocialContext,
+) (bool, error) {
+	changed, err := r.ReconcileOwnerCurrentState(ctx, ownerID, []domainsocialcontext.CurrentStateMutation{{
+		SemanticID:  semanticID,
+		OccurredAt:  occurredAt,
+		Replacement: replacement,
+	}})
+	if err != nil {
+		return false, err
+	}
+	return changed > 0, nil
 }
 
 func (r *MemoryRepository) All() []domainsocialcontext.SocialContext {
