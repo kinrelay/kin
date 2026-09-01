@@ -111,11 +111,13 @@ func hasSuppressedAntecedentBarrier(decisions []SignificanceDecision, signals []
 		if decisions[index].Status != SignificanceEligible {
 			continue
 		}
-		eligibleTopic := supportedSignificanceAntecedentTopic(normalizeSignificanceContent(signals[index].Content))
-		if eligibleTopic == "" {
-			continue
+		content := normalizeSignificanceContent(signals[index].Content)
+		if significanceReversalTopic(content) == previousTopic {
+			return true
 		}
-		return eligibleTopic != previousTopic
+		if supportedSignificanceAntecedentTopic(content) == previousTopic {
+			return false
+		}
 	}
 	return false
 }
@@ -185,22 +187,25 @@ func isExplicitReversalSignal(content string) bool {
 	if containsObjectlessAbandonmentSignal(content) {
 		return true
 	}
+	return significanceReversalTopic(content) != ""
+}
 
+func significanceReversalTopic(content string) string {
 	if hasTopicBoundSignificanceReversal(content, []string{"分散式系統", "一致性模型"},
 		"不再深入研究", "停止深入研究", "沒有深入研究", "不想深入研究", "放棄深入研究",
 		"不再研究", "停止研究", "不想研究", "沒有研究", "放棄研究",
 		"不再比較", "停止比較", "放棄了", "放棄",
 	) {
-		return true
+		return "distributed-systems"
 	}
 	if hasTopicBoundSignificanceReversal(content, []string{"馬拉松"},
 		"不再準備", "停止準備", "沒有準備",
 		"不再訓練", "停止訓練", "沒有訓練",
 		"取消參賽", "取消參加", "不參加", "不參賽", "放棄",
 	) {
-		return true
+		return "marathon"
 	}
-	return false
+	return ""
 }
 
 func containsObjectlessAbandonmentSignal(content string) bool {
@@ -222,14 +227,15 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 					break
 				}
 				index := searchFrom + relativeIndex
-				if isNegatedSignificanceReversal(clause[:index]) {
+				prefix := clause[:index]
+				if hasExplicitOtherSignificanceSubject(prefix) || isNegatedSignificanceReversal(prefix) {
 					searchFrom = index + len(pattern)
 					continue
 				}
 
 				object := significanceReversalObjectBeforeNextAction(strings.TrimSpace(clause[index+len(pattern):]))
 				if object == "" || object == "了" {
-					preposedObject := significanceReversalPreposedObject(clause[:index])
+					preposedObject := significanceReversalPreposedObject(prefix)
 					if significanceReversalObjectTargetsTopic(preposedObject, markers) {
 						return true
 					}
@@ -238,6 +244,16 @@ func hasTopicBoundSignificanceReversal(content string, markers []string, pattern
 				}
 				searchFrom = index + len(pattern)
 			}
+		}
+	}
+	return false
+}
+
+func hasExplicitOtherSignificanceSubject(prefix string) bool {
+	prefix = strings.TrimSpace(prefix)
+	for _, subject := range []string{"我的朋友", "朋友", "同事", "家人", "伴侶", "他們", "她們", "他", "她"} {
+		if strings.HasPrefix(prefix, subject) {
+			return true
 		}
 	}
 	return false
@@ -375,7 +391,7 @@ func splitSignificanceCompoundActions(clause string) []string {
 	}
 	bestIndex := -1
 	bestLength := 0
-	for _, boundary := range []string{"但是", "並且", "同時", "但", "並", "且", "而"} {
+	for _, boundary := range []string{"但是", "然後", "並且", "同時", "但", "並", "且", "而"} {
 		searchFrom := 0
 		for searchFrom < len(clause) {
 			relativeIndex := strings.Index(clause[searchFrom:], boundary)
