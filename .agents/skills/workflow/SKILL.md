@@ -4,17 +4,21 @@ Use this skill for issue-to-PR execution.
 
 ## Objective
 
-Keep agent work scoped, architecture-aligned, reviewable, and evidence-based.
+Keep agent work scoped, architecture-aligned, reviewable, coordinated, and evidence-based.
 
 ## Before implementation
 
 1. Read root `AGENTS.md`.
-2. Read the current issue completely.
-3. Identify acceptance criteria and explicit non-goals.
-4. Read the minimum relevant product/MVP/architecture documents.
-5. Identify affected domain(s), actor(s), interaction(s), command(s), query(s), events, and external boundaries.
-6. Confirm whether the requested change is domain behavior, application orchestration, read-model work, adapter work, delivery work, or documentation.
-7. Do not create infrastructure or abstractions for hypothetical future work.
+2. Read `.github/AGENT_COORDINATION.md`.
+3. Read the current issue completely.
+4. Identify acceptance criteria and explicit non-goals.
+5. Read the minimum relevant product/MVP/architecture documents.
+6. Identify affected domain(s), actor(s), interaction(s), command(s), query(s), events, and external boundaries.
+7. Confirm whether the requested change is domain behavior, application orchestration, read-model work, adapter work, delivery work, or documentation.
+8. Inspect current issue/PR/branch/CI/review state and complete the coordination protocol's preflight and deterministic post-claim arbitration before creating a branch, PR, commit, or changing code.
+9. Do not create infrastructure or abstractions for hypothetical future work.
+
+If another live agent/session owns the issue, stop work on that issue and select another eligible task. If issue comments cannot be read well enough to establish unique ownership, fail closed rather than creating duplicate work.
 
 If product or domain terminology is unclear, prefer updating/discussing the language before encoding ambiguous concepts into persistence or APIs.
 

@@ -105,11 +105,15 @@ See `.agents/skills/testing/SKILL.md` for detailed rules.
 Before editing code, every agent must:
 
 1. Read this file.
-2. Read the current issue completely, including acceptance criteria and non-goals.
-3. Read the nearest applicable local `AGENTS.md` for the files being changed.
-4. Read only the relevant product / MVP / architecture documents and skills.
-5. Identify the affected domain(s), interaction(s), command(s), query(s), and boundaries.
-6. State assumptions explicitly in the PR when the issue leaves material ambiguity.
+2. Read the current issue completely, including acceptance criteria and non-goals, and confirm it is eligible under the active roadmap slice.
+3. Read `.github/AGENT_COORDINATION.md` and inspect current claims / active PRs.
+4. Read the nearest applicable local `AGENTS.md` for the files being changed.
+5. Read only the relevant product / MVP / architecture documents and skills.
+6. Identify the affected domain(s), interaction(s), command(s), query(s), and boundaries.
+7. Complete the coordination preflight / claim arbitration before creating a branch, PR, commit, or changing code for the issue.
+8. State assumptions explicitly in the PR when the issue leaves material ambiguity.
+
+The coordination protocol governs ownership/hand-off only; it does not override the source-of-truth precedence, roadmap authorization, issue scope, architecture, testing, or review requirements in this contract.
 
 During implementation:
 
