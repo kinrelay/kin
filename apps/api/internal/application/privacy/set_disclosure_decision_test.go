@@ -33,7 +33,10 @@ func (f *fakeDisclosureDecisionRepository) Find(
 	string,
 	domainidentity.ID,
 ) (domainprivacy.DisclosureDecision, bool, error) {
-	return f.decision, f.found, f.findErr
+	if f.findErr != nil {
+		return domainprivacy.DisclosureDecision{}, false, f.findErr
+	}
+	return f.decision, f.found, nil
 }
 
 func (f *fakeDisclosureDecisionRepository) Save(_ context.Context, decision domainprivacy.DisclosureDecision) error {
@@ -66,9 +69,9 @@ func TestSetDisclosureDecisionOwnerCanCreateAndRevoke(t *testing.T) {
 	)
 
 	created, err := useCase.Execute(ctx, SetDisclosureDecisionCommand{
-		RequesterID:     ownerID.String(),
+		RequesterID:     string(ownerID),
 		SocialContextID: "social-context-1",
-		ViewerID:        viewerID.String(),
+		ViewerID:        string(viewerID),
 		Visibility:      domainprivacy.VisibilityVisible,
 	})
 	if err != nil {
@@ -82,9 +85,9 @@ func TestSetDisclosureDecisionOwnerCanCreateAndRevoke(t *testing.T) {
 	}
 
 	revoked, err := useCase.Execute(ctx, SetDisclosureDecisionCommand{
-		RequesterID:     ownerID.String(),
+		RequesterID:     string(ownerID),
 		SocialContextID: "social-context-1",
-		ViewerID:        viewerID.String(),
+		ViewerID:        string(viewerID),
 		Visibility:      domainprivacy.VisibilityHidden,
 	})
 	if err != nil {
@@ -112,9 +115,9 @@ func TestSetDisclosureDecisionRejectsViewerAndThirdPartyMutation(t *testing.T) {
 		)
 
 		_, err := useCase.Execute(ctx, SetDisclosureDecisionCommand{
-			RequesterID:     requesterID.String(),
+			RequesterID:     string(requesterID),
 			SocialContextID: "social-context-1",
-			ViewerID:        viewerID.String(),
+			ViewerID:        string(viewerID),
 			Visibility:      domainprivacy.VisibilityVisible,
 		})
 		if !errors.Is(err, domainprivacy.ErrOnlyContextOwnerCanChangeDisclosure) {
@@ -134,9 +137,9 @@ func TestCheckDisclosurePermissionDefaultsToDeny(t *testing.T) {
 	checker := NewCheckDisclosurePermission(repository)
 
 	allowed, err := checker.Execute(ctx, CheckDisclosurePermissionQuery{
-		OwnerID:         ownerID.String(),
+		OwnerID:         string(ownerID),
 		SocialContextID: "social-context-1",
-		ViewerID:        viewerID.String(),
+		ViewerID:        string(viewerID),
 	})
 	if err != nil {
 		t.Fatalf("Execute(absent) error = %v", err)
@@ -156,9 +159,9 @@ func TestSetDisclosureDecisionRejectsMissingSocialContext(t *testing.T) {
 	)
 
 	_, err := useCase.Execute(context.Background(), SetDisclosureDecisionCommand{
-		RequesterID:     ownerID.String(),
+		RequesterID:     string(ownerID),
 		SocialContextID: "missing-context",
-		ViewerID:        viewerID.String(),
+		ViewerID:        string(viewerID),
 		Visibility:      domainprivacy.VisibilityVisible,
 	})
 	if !errors.Is(err, ErrSocialContextNotFound) {
