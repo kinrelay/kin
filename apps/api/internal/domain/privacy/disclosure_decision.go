@@ -8,18 +8,25 @@ import (
 )
 
 var (
+	// ErrOnlyContextOwnerCanChangeDisclosure indicates a non-owner attempted to mutate disclosure.
 	ErrOnlyContextOwnerCanChangeDisclosure = errors.New("only the context owner can change disclosure")
-	ErrBlankSocialContextID                 = errors.New("social context id is blank")
-	ErrInvalidVisibility                    = errors.New("disclosure visibility is invalid")
+	// ErrBlankSocialContextID indicates the decision did not identify a Social Context.
+	ErrBlankSocialContextID = errors.New("social context id is blank")
+	// ErrInvalidVisibility indicates an unsupported disclosure visibility.
+	ErrInvalidVisibility = errors.New("disclosure visibility is invalid")
 )
 
+// Visibility is the owner-selected disclosure state for one specific viewer.
 type Visibility string
 
 const (
-	VisibilityHidden  Visibility = "hidden"
+	// VisibilityHidden denies disclosure to the specific viewer.
+	VisibilityHidden Visibility = "hidden"
+	// VisibilityVisible allows disclosure to the specific viewer.
 	VisibilityVisible Visibility = "visible"
 )
 
+// DisclosureDecision records an owner's disclosure choice for one Social Context and viewer.
 type DisclosureDecision struct {
 	ownerID         domainidentity.ID
 	socialContextID string
@@ -27,6 +34,7 @@ type DisclosureDecision struct {
 	visibility      Visibility
 }
 
+// NewDisclosureDecision creates an owner-authorized relationship-specific disclosure decision.
 func NewDisclosureDecision(
 	actorID domainidentity.ID,
 	ownerID domainidentity.ID,
@@ -66,6 +74,7 @@ func NewDisclosureDecision(
 	}, nil
 }
 
+// ChangeVisibility applies a visibility change only when initiated by the Context Owner.
 func (d *DisclosureDecision) ChangeVisibility(actorID domainidentity.ID, visibility Visibility) error {
 	normalizedActorID, err := domainidentity.NewID(string(actorID))
 	if err != nil {
@@ -81,12 +90,22 @@ func (d *DisclosureDecision) ChangeVisibility(actorID domainidentity.ID, visibil
 	return nil
 }
 
+// OwnerID returns the Social Context owner who controls this decision.
 func (d DisclosureDecision) OwnerID() domainidentity.ID { return d.ownerID }
+
+// SocialContextID returns the Social Context governed by this decision.
 func (d DisclosureDecision) SocialContextID() string { return d.socialContextID }
+
+// ViewerID returns the specific viewer governed by this decision.
 func (d DisclosureDecision) ViewerID() domainidentity.ID { return d.viewerID }
+
+// Visibility returns the current owner-selected visibility.
 func (d DisclosureDecision) Visibility() Visibility { return d.visibility }
+
+// AllowsDisclosure reports whether this decision currently permits disclosure.
 func (d DisclosureDecision) AllowsDisclosure() bool { return d.visibility == VisibilityVisible }
 
+// AllowsDisclosure applies default-deny semantics when no decision exists.
 func AllowsDisclosure(decision *DisclosureDecision) bool {
 	return decision != nil && decision.AllowsDisclosure()
 }

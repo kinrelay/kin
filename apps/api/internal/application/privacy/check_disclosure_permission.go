@@ -8,20 +8,24 @@ import (
 	domainprivacy "github.com/kinrelay/kin/apps/api/internal/domain/privacy"
 )
 
+// CheckDisclosurePermissionQuery identifies the disclosure decision to evaluate.
 type CheckDisclosurePermissionQuery struct {
 	OwnerID         string
 	SocialContextID string
 	ViewerID        string
 }
 
+// CheckDisclosurePermission evaluates a stored disclosure decision with default-deny semantics.
 type CheckDisclosurePermission struct {
 	repository DisclosureDecisionRepository
 }
 
+// NewCheckDisclosurePermission constructs the disclosure permission query use case.
 func NewCheckDisclosurePermission(repository DisclosureDecisionRepository) CheckDisclosurePermission {
 	return CheckDisclosurePermission{repository: repository}
 }
 
+// Execute returns false when no decision exists and otherwise returns the owner's stored decision.
 func (uc CheckDisclosurePermission) Execute(
 	ctx context.Context,
 	query CheckDisclosurePermissionQuery,
