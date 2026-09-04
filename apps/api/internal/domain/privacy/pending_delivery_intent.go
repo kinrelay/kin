@@ -11,6 +11,7 @@ var (
 	ErrBlankDeliverySocialContextID = errors.New("delivery social context id is blank")
 	ErrInvalidPrivacyPolicyRevision = errors.New("privacy policy revision must be positive")
 	ErrInvalidRelationshipRevision  = errors.New("relationship revision must be positive")
+	ErrDeliveryIntentNotPending     = errors.New("delivery intent is not pending")
 )
 
 type PrivacyPolicyRevision uint64
@@ -35,7 +36,7 @@ type PendingDeliveryIntent struct {
 	projection           ContextProjection
 	privacyRevision      PrivacyPolicyRevision
 	relationshipRevision RelationshipRevision
-	state               DeliveryIntentState
+	state                DeliveryIntentState
 }
 
 func NewPendingDeliveryIntent(
@@ -58,11 +59,8 @@ func NewPendingDeliveryIntent(
 	if contextID == "" {
 		return PendingDeliveryIntent{}, ErrBlankDeliverySocialContextID
 	}
-	if privacyRevision == 0 {
-		return PendingDeliveryIntent{}, ErrInvalidPrivacyPolicyRevision
-	}
-	if relationshipRevision == 0 {
-		return PendingDeliveryIntent{}, ErrInvalidRelationshipRevision
+	if err := validateDeliveryRevisions(privacyRevision, relationshipRevision); err != nil {
+		return PendingDeliveryIntent{}, err
 	}
 
 	return PendingDeliveryIntent{
@@ -72,8 +70,45 @@ func NewPendingDeliveryIntent(
 		projection:           projection,
 		privacyRevision:      privacyRevision,
 		relationshipRevision: relationshipRevision,
-		state:               DeliveryIntentPending,
+		state:                DeliveryIntentPending,
 	}, nil
+}
+
+// RefreshProjection replaces the still-pending snapshot with a projection calculated from
+// current privacy and relationship state. It never authorizes dispatch by itself.
+func (i PendingDeliveryIntent) RefreshProjection(
+	projection ContextProjection,
+	privacyRevision PrivacyPolicyRevision,
+	relationshipRevision RelationshipRevision,
+) (PendingDeliveryIntent, error) {
+	if i.state != DeliveryIntentPending {
+		return PendingDeliveryIntent{}, ErrDeliveryIntentNotPending
+	}
+	if err := validateDeliveryRevisions(privacyRevision, relationshipRevision); err != nil {
+		return PendingDeliveryIntent{}, err
+	}
+	i.projection = projection
+	i.privacyRevision = privacyRevision
+	i.relationshipRevision = relationshipRevision
+	return i, nil
+}
+
+// MarkDispatchable is deliberately invoked only from inside an application-owned atomic
+// revision guard after the latest privacy and relationship revisions have been matched.
+func (i PendingDeliveryIntent) MarkDispatchable() (PendingDeliveryIntent, error) {
+	if i.state != DeliveryIntentPending {
+		return PendingDeliveryIntent{}, ErrDeliveryIntentNotPending
+	}
+	i.state = DeliveryIntentDispatchable
+	return i, nil
+}
+
+// Cancel prevents a pending intent from becoming dispatchable after authorization is denied.
+func (i PendingDeliveryIntent) Cancel() PendingDeliveryIntent {
+	if i.state == DeliveryIntentPending {
+		i.state = DeliveryIntentCancelled
+	}
+	return i
 }
 
 func (i PendingDeliveryIntent) OwnerID() domainidentity.ID { return i.ownerID }
@@ -83,3 +118,13 @@ func (i PendingDeliveryIntent) Projection() ContextProjection { return i.project
 func (i PendingDeliveryIntent) PrivacyRevision() PrivacyPolicyRevision { return i.privacyRevision }
 func (i PendingDeliveryIntent) RelationshipRevision() RelationshipRevision { return i.relationshipRevision }
 func (i PendingDeliveryIntent) State() DeliveryIntentState { return i.state }
+
+func validateDeliveryRevisions(privacyRevision PrivacyPolicyRevision, relationshipRevision RelationshipRevision) error {
+	if privacyRevision == 0 {
+		return ErrInvalidPrivacyPolicyRevision
+	}
+	if relationshipRevision == 0 {
+		return ErrInvalidRelationshipRevision
+	}
+	return nil
+}
