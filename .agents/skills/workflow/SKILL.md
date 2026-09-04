@@ -100,7 +100,7 @@ When handing implementation, review, or verification work between agents/reviewe
 - Use `ReviewResult` for current-diff findings and merge recommendation.
 - Use `VerifierResult` for checks actually executed and observed.
 - Record `unknown`, `not_applicable`, `skipped`, and `blocked` explicitly; never infer `pass` from missing evidence.
-- Identify the affected app/subtree and applicable local `AGENTS.md` without duplicating policy text.
+- Identify the affected app/subtree and record root `AGENTS.md` plus every applicable local `AGENTS.md` in `applicable_contracts`, without duplicating policy text.
 - Keep evidence in GitHub/CI/repository artifacts and link/reference it from the handoff rather than copying large logs.
 
 The handoff artifact is an interface between stages, not a new source of authority. Issue scope, roadmap, repository/local contracts, coordination ownership, CI, and review gates remain canonical.
