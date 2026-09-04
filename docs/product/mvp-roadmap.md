@@ -73,15 +73,15 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**。
+目前 **Active Slice：MVP 4 — Friend 收到有用的 Friend Pulse**。
 
 建議順序：
 
 1. **MVP 0 — 建立 Identity 與 Close-friend Relationship**
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
 3. **MVP 2 — Activity 成為 Derived Social Context**
-4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼** ← Active
-5. **MVP 4 — Friend 收到有用的 Friend Pulse**
+4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
+5. **MVP 4 — Friend 收到有用的 Friend Pulse** ← Active
 6. **MVP 5 — Context 幫助開始真實 Conversation**
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
 
@@ -89,7 +89,11 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ### MVP 2 → MVP 3 transition evidence
 
-MVP 2 的 completion signal 已由 #33、#34、#35 與 #48 覆蓋，並經 #52、#55 的後續驗證與修正完成收斂：authorized Activity 會先經 significance / suppression，再產生並驗證可追溯 provenance、非 raw replay 的 private Social Context；owner 可透過 purpose-built read model 查看結果，且既有實作沒有提前建立 friend-visible disclosure。基於這些 evidence 與 MVP 2 Slice Completion Signal，MVP 3 現在成為唯一 Active Slice。
+MVP 2 的 completion signal 已由 #33、#34、#35 與 #48 覆蓋，並經 #52、#55 的後續驗證與修正完成收斂：authorized Activity 會先經 significance / suppression，再產生並驗證可追溯 provenance、非 raw replay 的 private Social Context；owner 可透過 purpose-built read model 查看結果，且既有實作沒有提前建立 friend-visible disclosure。基於這些 evidence 與 MVP 2 Slice Completion Signal，MVP 3 已完成其 Active Slice transition。
+
+### MVP 3 → MVP 4 transition evidence
+
+MVP 3 的 completion signal 已由 #60 / PR #61、#62 / PR #63 與 #64 / PR #65 覆蓋：Context Owner 可建立、修改、降低或撤銷 disclosure；authenticated active-friend read boundary 只回傳 relationship-specific `Context Projection`；pending delivery 會綁定 privacy / relationship revision，並在 dispatch-time 重新授權、重新投影或取消，避免 stale / over-detailed payload 進入可送出狀態。#70 已逐項對照 MVP 3 全部 Acceptance Criteria 與 Slice Completion Signal，未發現阻擋核心 hypothesis 的 implementation gap，因此 MVP 4 現在成為唯一 Active Slice。
 
 ### Active Slice 如何前進
 
