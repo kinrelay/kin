@@ -1,6 +1,6 @@
 # Issue Authoring Policy
 
-本文件定義 Kin GitHub issue 的 authoring contract。Issue 是目前 task 的最高優先 source of truth，但它應只承載 **task-specific authority**；可重用的 repository policy 與 procedure 必須留在 canonical `AGENTS.md`、local `AGENTS.md` 與 `.agents/skills/`。
+本文件定義 Kin GitHub issue 的 authoring contract。Issue 是目前 task 的最高優先 source of truth，但它應只承載 **task-specific authority**；可重用的 repository policy 與 procedure 應留在各自 canonical repository contract，例如 root/local `AGENTS.md`、`.github/AGENT_COORDINATION.md` 與 `.agents/skills/`。
 
 ## Issue 應包含什麼
 
@@ -24,7 +24,7 @@ Issue 應清楚描述這個 task 自己的：
 - generic coding-agent authority instructions
 - reusable privacy / provider policy
 - generic PR evidence / review-disposition procedure
-- 已由 root/local `AGENTS.md` 或 repo-local skill 定義的其他 repository-wide contract
+- 已由 canonical repository contract 定義的其他 repository-wide rule
 
 原因不是節省篇幅而已。因為 current issue precedence 高於 repository contracts，過時的 duplicated policy 可能意外覆蓋較新的 canonical rule，造成 instruction drift。
 
