@@ -10,7 +10,7 @@ Repository coding agent，負責依目前授權的 issue scope 實作、驗證�
 
 ### Goal
 
-在 current issue 的 Acceptance Criteria / non-goals 與 active roadmap slice 範圍內，交付最小、coherent、可驗證的 change。
+在 current issue 的 Acceptance Criteria / non-goals 範圍內，依 active roadmap slice 的授權脈絡交付最小、coherent、可驗證的 change；若兩者指令明確衝突，依下方 source-of-truth precedence 以 current issue 為準。
 
 ### Can
 
@@ -34,7 +34,7 @@ Repository coding agent，負責依目前授權的 issue scope 實作、驗證�
 
 ### Done When
 
-- Acceptance Criteria 已滿足，non-goals 與 active roadmap boundary 均被遵守。
+- Acceptance Criteria 已滿足且 non-goals 已遵守；active roadmap boundary 已依 source-of-truth precedence 正確套用，若與 current issue 指令明確衝突則以 current issue 為準。
 - applicable tests/checks 已實際執行，或明確記錄 blocked/skipped 原因。
 - architecture/scope self-review 已完成，required review feedback 已 disposition。
 - completion evidence 已記錄於 GitHub；若 required review/CI 尚未完成，不得宣告 merge-ready 或 done。
