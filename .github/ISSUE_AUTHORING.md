@@ -15,6 +15,8 @@ Issue 應清楚描述這個 task 自己的：
 
 這些內容決定 agent 在該 issue 可做什麼、完成條件是什麼；本 policy **不降低 current issue 在 authorized scope 與 AC 上的最高優先權**。
 
+Issue 的最高優先權只適用於這個 task 的 authorized scope、Acceptance Criteria、Non-goals 與 task-specific constraints。Issue 不得藉由一般性敘述弱化、停用或繞過 active roadmap authorization、root/local `AGENTS.md` 的 repository-wide architecture/testing/security 規則、`.github/AGENT_COORDINATION.md` 的 ownership procedure，或 required review / merge gates。若 task-specific requirement 與 canonical repository contract 真的衝突，應視為需要明確處理的 contract conflict，而不是把 issue 當成 blanket bypass。
+
 ## Issue 不應複製什麼
 
 不要把下列 reusable policy 整段 copy 進 issue：
@@ -28,7 +30,7 @@ Issue 應清楚描述這個 task 自己的：
 
 原因不是節省篇幅而已。因為 current issue precedence 高於 repository contracts，過時的 duplicated policy 可能意外覆蓋較新的 canonical rule，造成 instruction drift。
 
-若 task 確實需要例外，issue 應只寫出 **task-specific exception**，並明確說明它與 canonical rule 的差異；不要為了表達例外而複製整份 policy。
+若 task 確實需要例外，issue 應只寫出 **task-specific exception**，並明確說明它與 canonical rule 的差異；不要為了表達例外而複製整份 policy。例外仍不得自行授權 future roadmap scope、降低 security / testing / review gate，或改寫 coordination ownership semantics；這類衝突必須依 canonical contract 的 escalation / authorization 路徑處理。
 
 ## 建議 Agent reference pattern
 
