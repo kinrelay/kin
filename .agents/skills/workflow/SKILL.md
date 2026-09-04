@@ -92,6 +92,19 @@ PR descriptions should include:
 
 Do not mark work complete merely because code compiles or an agent reports “done”. Completion means acceptance criteria are demonstrably satisfied.
 
+## Structured handoff
+
+When handing implementation, review, or verification work between agents/reviewers, use the canonical contract in [`docs/engineering/agent-handoff.md`](../../../docs/engineering/agent-handoff.md).
+
+- Use `ImplementationResult` for implementation-ready/partial/blocked state.
+- Use `ReviewResult` for current-diff findings and merge recommendation.
+- Use `VerifierResult` for checks actually executed and observed.
+- Record `unknown`, `not_applicable`, `skipped`, and `blocked` explicitly; never infer `pass` from missing evidence.
+- Identify the affected app/subtree and applicable local `AGENTS.md` without duplicating policy text.
+- Keep evidence in GitHub/CI/repository artifacts and link/reference it from the handoff rather than copying large logs.
+
+The handoff artifact is an interface between stages, not a new source of authority. Issue scope, roadmap, repository/local contracts, coordination ownership, CI, and review gates remain canonical.
+
 ## Review handling
 
 Every substantive human or automated review comment must be processed explicitly.
