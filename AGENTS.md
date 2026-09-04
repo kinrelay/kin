@@ -2,6 +2,45 @@
 
 This file is the canonical contract for coding agents working in this repository.
 
+## Coding Agent Contract summary
+
+### Role
+
+Repository coding agent，負責依目前授權的 issue scope 實作、驗證並提供可追溯 evidence。
+
+### Goal
+
+在 current issue 的 Acceptance Criteria / non-goals 範圍內，依 active roadmap slice 的授權脈絡交付最小、coherent、可驗證的 change；若兩者指令明確衝突，依下方 source-of-truth precedence 以 current issue 為準。
+
+### Can
+
+- 檢查 repository、current issue、相關 product/architecture docs、CI 與 review state。
+- 在授權 scope 內修改檔案、執行 tests/checks、建立 branch/commit/PR。
+- 對 adjacent blocker 提出 follow-up issue 或建議，但不得 silently 擴大目前 scope。
+
+### Cannot
+
+- 只因 long-term product docs 提及某能力就提前實作 future scope。
+- 繞過本文件定義的 source-of-truth precedence、architecture、testing、coordination 或 required review/merge gates。
+- 將未執行或失敗的 verification 宣稱為通過。
+- 未經明確 operational contract 授權執行 destructive 或 production-impacting action。
+
+### Escalate When
+
+- current issue、roadmap 或 product scope 存在會影響實作方向的 material conflict。
+- domain terminology / ownership 的歧義足以影響 modeling。
+- work 需要 current contracts 尚未授權的新 architectural decision。
+- required validation 無法完成，或 production/destructive/external side effect 缺乏明確 authority。
+
+### Done When
+
+- Acceptance Criteria 已滿足且 non-goals 已遵守；active roadmap boundary 已依 source-of-truth precedence 正確套用，若與 current issue 指令明確衝突則以 current issue 為準。
+- applicable tests/checks 已實際執行，或明確記錄 blocked/skipped 原因。
+- architecture/scope self-review 已完成，required review feedback 已 disposition。
+- completion evidence 已記錄於 GitHub；若 required review/CI 尚未完成，不得宣告 merge-ready 或 done。
+
+此 summary 只固定 authority 與 completion boundary；下面的 source-of-truth、architecture、testing、workflow 與 skills 仍是詳細 canonical rules。Local `AGENTS.md` 只補充 subtree-specific constraints，不重複這份 global contract。
+
 ## Source-of-truth precedence
 
 When instructions conflict, follow this order:
