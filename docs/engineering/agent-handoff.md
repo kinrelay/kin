@@ -112,9 +112,12 @@ status: changes_required # allowed: ready, changes_required, blocked
 issue: "#123"
 pr: "#124"
 reviewed_head: "<exact-head-sha>"
-applicable_contracts:
-  - "AGENTS.md"
-  - "apps/api/AGENTS.md"
+affected:
+  apps_or_subtrees:
+    - "apps/api"
+  applicable_contracts:
+    - "AGENTS.md"
+    - "apps/api/AGENTS.md"
 findings:
   blocking:
     - id: "R-001"
@@ -167,6 +170,7 @@ Rules:
 - Every substantive finding must carry a stable `id` and evidence, then end with an explicit `fixed` or `declined` disposition before merge. If a finding changes categories while being processed, preserve its `id`.
 - `status: blocked` or `recommendation: blocked` requires at least one `blockers[]` item with both `blocker` and `unblock_condition` populated.
 - `reviewed_head` must match the diff being recommended. A later commit makes the result stale until the affected review/verification is refreshed.
+- `affected.apps_or_subtrees` and `affected.applicable_contracts` must identify the repository scope actually reviewed.
 
 ## `VerifierResult`
 
@@ -178,6 +182,12 @@ status: pass # allowed: pass, fail, blocked
 issue: "#123"
 pr: "#124"
 verified_head: "<exact-head-sha>"
+affected:
+  apps_or_subtrees:
+    - "apps/api"
+  applicable_contracts:
+    - "AGENTS.md"
+    - "apps/api/AGENTS.md"
 checks:
   executed:
     - check: "<command/check>"
@@ -200,6 +210,7 @@ Rules:
 - A required check that cannot run normally makes the result `blocked` unless the repository contract explicitly permits a skip.
 - `status: blocked` or `conclusion: blocked` requires at least one `blockers[]` item with both `blocker` and `unblock_condition` populated.
 - A failed check is `fail`; do not relabel it as tooling noise without evidence.
+- `affected.apps_or_subtrees` and `affected.applicable_contracts` must identify the repository scope actually verified.
 
 ## Compact example — API privacy task
 
@@ -253,6 +264,9 @@ status: blocked
 issue: "#88"
 pr: "#89"
 verified_head: "<current-head>"
+affected:
+  apps_or_subtrees: ["apps/mobile"]
+  applicable_contracts: ["AGENTS.md", "apps/mobile/AGENTS.md"]
 checks:
   executed:
     - check: "unit tests"
