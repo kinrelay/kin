@@ -29,7 +29,7 @@ func (f fakeCandidateReader) ListForOwner(_ context.Context, _ domainidentity.ID
 
 type fakeProjector struct {
 	projections map[string]domainprivacy.ContextProjection
-	hidden      map[string]bool
+	notVisible  map[string]bool
 }
 
 func (f fakeProjector) Project(
@@ -37,7 +37,7 @@ func (f fakeProjector) Project(
 	_, _ domainidentity.ID,
 	socialContextID string,
 ) (domainprivacy.ContextProjection, bool, error) {
-	if f.hidden[socialContextID] {
+	if f.notVisible[socialContextID] {
 		return domainprivacy.ContextProjection{}, false, nil
 	}
 	projection, ok := f.projections[socialContextID]
@@ -63,11 +63,13 @@ func TestGetFriendPulseRejectsNonActiveFriendship(t *testing.T) {
 func TestGetFriendPulseReturnsAtMostThreeVisibleProjectionsInDeterministicSignalOrder(t *testing.T) {
 	base := time.Date(2026, time.September, 5, 1, 0, 0, 0, time.UTC)
 	candidates := []Candidate{
-		{SocialContextID: "low", SignalScore: 20, ObservedAt: base.Add(5 * time.Minute)},
-		{SocialContextID: "hidden-high", SignalScore: 100, ObservedAt: base.Add(10 * time.Minute)},
+		{SocialContextID: "revoked", SignalScore: 100, ObservedAt: base.Add(40 * time.Minute)},
+		{SocialContextID: "expired", SignalScore: 100, ObservedAt: base.Add(30 * time.Minute)},
+		{SocialContextID: "suppressed", SignalScore: 100, ObservedAt: base.Add(20 * time.Minute)},
 		{SocialContextID: "high-new", SignalScore: 90, ObservedAt: base.Add(20 * time.Minute)},
 		{SocialContextID: "high-old", SignalScore: 90, ObservedAt: base.Add(10 * time.Minute)},
 		{SocialContextID: "medium", SignalScore: 50, ObservedAt: base.Add(30 * time.Minute)},
+		{SocialContextID: "low", SignalScore: 20, ObservedAt: base.Add(5 * time.Minute)},
 	}
 	projector := fakeProjector{
 		projections: map[string]domainprivacy.ContextProjection{
@@ -76,7 +78,11 @@ func TestGetFriendPulseReturnsAtMostThreeVisibleProjectionsInDeterministicSignal
 			"high-old": {Meaning: "high signal older"},
 			"medium":   {Meaning: "medium signal"},
 		},
-		hidden: map[string]bool{"hidden-high": true},
+		notVisible: map[string]bool{
+			"revoked":    true,
+			"expired":    true,
+			"suppressed": true,
+		},
 	}
 	uc := NewGetFriendPulse(fakeFriendshipReader{active: true}, fakeCandidateReader{candidates: candidates}, projector)
 
