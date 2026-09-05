@@ -95,6 +95,7 @@ func (uc GetFriendPulse) Execute(ctx context.Context, query Query) (Pulse, error
 	if err != nil {
 		return Pulse{}, err
 	}
+	candidates = append([]Candidate(nil), candidates...)
 	sort.SliceStable(candidates, func(i, j int) bool {
 		if candidates[i].SignalScore != candidates[j].SignalScore {
 			return candidates[i].SignalScore > candidates[j].SignalScore
