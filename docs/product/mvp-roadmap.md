@@ -73,7 +73,7 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 4 — Friend 收到有用的 Friend Pulse**。
+目前 **Active Slice：MVP 5 — Context 幫助開始真實 Conversation**。
 
 建議順序：
 
@@ -81,8 +81,8 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
 3. **MVP 2 — Activity 成為 Derived Social Context**
 4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
-5. **MVP 4 — Friend 收到有用的 Friend Pulse** ← Active
-6. **MVP 5 — Context 幫助開始真實 Conversation**
+5. **MVP 4 — Friend 收到有用的 Friend Pulse**
+6. **MVP 5 — Context 幫助開始真實 Conversation** ← Active
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
 
 這個順序代表目前的最小驗證路徑，不是永久 roadmap。
@@ -94,6 +94,10 @@ MVP 2 的 completion signal 已由 #33、#34、#35 與 #48 覆蓋，並經 #52�
 ### MVP 3 → MVP 4 transition evidence
 
 MVP 3 的 completion signal 已由 #60 / PR #61、#62 / PR #63 與 #64 / PR #65 覆蓋：Context Owner 可建立、修改、降低或撤銷 disclosure；authenticated active-friend read boundary 只回傳 relationship-specific `Context Projection`；pending delivery 會綁定 privacy / relationship revision，並在 dispatch-time 重新授權、重新投影或取消，避免 stale / over-detailed payload 進入可送出狀態。#70 已逐項對照 MVP 3 全部 Acceptance Criteria 與 Slice Completion Signal，未發現阻擋核心 hypothesis 的 implementation gap，因此 MVP 4 現在成為唯一 Active Slice。
+
+### MVP 4 → MVP 5 transition evidence
+
+MVP 4 的 completion signal 已由 #72 / PR #73 與 #74 的 closure reconciliation 覆蓋：authenticated viewer 可以取得 active friend 的 permissioned Friend Pulse；read side 只對 relationship-specific `Context Projection` 做 deterministic prioritization，限制為 1–3 個高訊號 item，排除 revoked / expired / suppressed context，且不讀取 privacy projection 前的敏感內容，也不依賴 chronological feed。#74 已逐項對照 MVP 4 的 6 項 Acceptance Criteria 與 Slice Completion Signal，並確認目前沒有其他 open product gap 阻擋「使用者能在極短時間理解朋友最近最值得知道什麼」的核心 hypothesis。因此 MVP 5 現在成為唯一 Active Slice；MVP 6 仍未授權。
 
 ### Active Slice 如何前進
 
@@ -680,83 +684,70 @@ Kin 真正的 outcome 不是「看過 context」，而是讓真實 relationship 
 
 ## User Stories
 
-- 作為使用者，看到朋友的一則 context 後，我可以快速得到一個自然、不尷尬、與該 context 有關的 conversation starter。
-- 作為使用者，我可以用「聊聊這個」之類的 CTA 把 context 轉成真實互動意圖。
+- 作為使用者，我看到朋友最近的 context 後，可以自然地找到一個開口方式。
+- 作為使用者，我不希望 Kin 代替我聊天，而是幫我降低 conversation startup friction。
 
 ## Use Cases / Interactions
 
-### Generate Conversation Starter
+### Get Conversation Support
 
-針對 viewer 已有權看到的 Context Projection 產生自然且相關的 starter。若無法產生具體、可使用的 starter，不能只回傳空字串或 generic placeholder 來視為成功。
+使用者從某個 permissioned Context Projection / Pulse Item 請求 conversation support。
 
-### Start Conversation Intent
+第一版可以是 deterministic template 或非常薄的 `ConversationSupportGenerator` port；不需要先建立 agentic conversation system。
 
-使用者表達「我要拿這個 context 去跟朋友聊」的 product intent。
+### Start Real Conversation
 
-### Record Lightweight Outcome
+產品至少要能表達「使用者因這個 context 產生了 conversation intent」。
 
-若不增加過多摩擦，可以記錄使用者是否點擊 / 採用 conversation CTA，作為產品驗證訊號。
-
-Kin 若無法觀測外部聊天是否真的開始，不得把 intent 記錄成 confirmed conversation。
+MVP 不一定需要內建 chat；可以是 copy suggestion、open external app、mark intent，或其他最小 interaction。
 
 ## Domains Involved
 
-- Conversation / Interaction
-- Privacy & Sharing
 - Social Context
-
-AI 如用於 starter generation，仍是 outer adapter。
+- Privacy & Sharing
+- Relevance
+- Conversation Support
 
 ## Expected Domain Responsibilities
 
-### Conversation / Interaction
+### Conversation Support
 
 負責：
 
-- conversation-starting intent
-- context-based starter concept
-- MVP 所需的 lightweight interaction outcome
-
-不負責：
-
-- friend visibility
-- private chat history
-- generic messaging system
+- conversation starter intent
+- context-aware but permission-bounded support
+- 不越界補充未揭露資訊
 
 ## Candidate Commands
 
-- `ExpressConversationIntentFromContext`
-- `RecordConversationIntentOutcome`
+- `RequestConversationSupport`
+- `RecordConversationIntent`
 
 ## Candidate Queries
 
-- `GetConversationStarter`
+- `GetConversationSupport`
 
 ## Candidate Domain Events
 
-- `ConversationIntentExpressedFromContext`
-
-若未來真的能確認外部 conversation 已開始，再另外定義 confirmed outcome event；本 MVP 不過度宣稱。
+- `ConversationSupportRequested`
+- `ConversationIntentRecorded`
 
 ## Acceptance Criteria
 
-- [ ] Starter 只能使用 viewer 已授權可見的 Context Projection。
-- [ ] Starter 不可藉由 prompt 還原更敏感的 raw Social Context / Activity。
-- [ ] 對可用的 Context Projection，系統能回傳一個非空白、非 generic placeholder、且與該 projection 明確相關的 conversation starter。
-- [ ] 使用者可以從 Pulse/context 明確進入 conversation CTA。
-- [ ] 至少能收集一個 lightweight signal 判斷 context 是否促成 interaction intent。
-- [ ] Product validation 必須能區分「starter 有生成」與「starter 對使用者真的有幫助 / 被採用」。
-- [ ] 未能觀測外部聊天開始時，不得將 CTA click / intent 計為 confirmed conversation started。
-- [ ] 不要求 Kin 自己成為 messaging app。
+- [ ] Conversation support 只能基於 viewer 已有權看到的 Context Projection。
+- [ ] Support 不會引入 projection 中不存在的敏感 detail。
+- [ ] 使用者可以取得至少一個可自然開口的 suggestion / prompt。
+- [ ] 產品可以記錄最小 conversation intent signal，例如 `opened` / `copied` / `started`。
+- [ ] MVP 不要求 Kin 代替使用者進行 autonomous conversation。
 
 ## Non-goals
 
-- 完整 chat product
-- 私訊紀錄 ingestion
-- AI friend
-- relationship coaching
-- conversation transcript analysis
-- 長期 Social Memory
+- autonomous messaging
+- full in-app chat
+- long-running conversation agent
+- sentiment coaching
+- relationship therapy
+- automatic follow-up
 
 ## Dependencies
 
@@ -764,7 +755,7 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 ## Slice Completion Signal
 
-當團隊可以驗證「projection-based starter 是否真的降低開口摩擦」，並能量測 conversation intent，而不把 intent 誤當 confirmed conversation 時，核心產品 loop 才具備最小驗證能力。
+當至少一位使用者能從 permissioned context 取得自然的 conversation support，並產生可觀察的 conversation intent signal 時，MVP 5 才具備進入下一 slice 的條件。
 
 ---
 
@@ -772,46 +763,41 @@ AI 如用於 starter generation，仍是 outer adapter。
 
 ## Goal
 
-在核心 friendship-context loop 已能驗證後，選擇一個低風險、可明確授權的 provider，自動產生 Activity，降低 manual contribution friction。
+在核心 manual loop 已證明有價值後，驗證 external provider 是否能降低 Activity contribution friction，而不破壞 consent / privacy。
 
 ## Validation Hypothesis
 
-若核心 loop 有價值，下一個主要 friction 會是「使用者必須記得主動提供 Activity」。一個適合的 external integration 可以測試 ambient / low-friction ingestion 是否提升 Kin 的持續價值。
+若 Kin 需要長期運作，完全依賴 manual contribution 可能 friction 太高；但 automation 只有在核心 context → relationship loop 已有價值後才值得投入。
 
 ## Primary Actors
 
 - User
-- External Activity Provider
+- External Provider
 
 ## User Stories
 
 - 作為使用者，我可以明確連接一個 provider。
-- 作為使用者，我知道 Kin 會讀取哪一類 signal。
-- 作為使用者，我可以停止連接，未來不再自動取得新 Activity。
+- 作為使用者，我知道哪些 provider data 會進入 Kin。
+- 作為使用者，我可以停止同步。
 
 ## Use Cases / Interactions
 
 ### Connect Provider
 
-使用者明確授權一個 provider connection。
+使用者明確授權一個 provider adapter。
 
-### Sync Authorized Activity
+### Import Provider Activity
 
-Integration adapter 取得 provider payload，在 boundary normalization / validation 後，呼叫既有 Activity contribution application flow。
-
-同一 external item 必須具有可穩定識別的 provenance / provider item identity，使 overlapping pages、retry 或 timeout recovery 不會重複產生相同 Kin Activity。
+Adapter 把 provider-specific payload normalization 成 Kin Activity candidate。
 
 ### Disconnect Provider
 
-停止後續 sync；是否刪除既有 derived data 應依獨立 privacy / retention policy 決定，不在此 slice 偷渡假設。
+停止後續 ingestion；是否刪除歷史資料由獨立 policy 決定。
 
 ## Domains Involved
 
-- Integration
 - Activity
-- Identity
-
-後續既有 Social Context / Privacy / Pulse flow 應重用，不為 provider 建另一套 domain path。
+- Integration
 
 ## Expected Domain Responsibilities
 
@@ -820,173 +806,66 @@ Integration adapter 取得 provider payload，在 boundary normalization / valid
 負責：
 
 - provider connection state
-- external authorization lifecycle
-- checkpoint / sync concerns
-- stable external provenance identity
-- repeated-sync idempotency / deduplication
-- provider error translation
-- provider-specific payload normalization boundary
+- consent boundary
+- sync lifecycle
 
 ### Activity
 
-只接收 provider-independent Kin Activity contract。
+仍只接受 normalized contribution，不知道 provider SDK。
 
 ## Candidate Commands
 
 - `ConnectActivityProvider`
-- `SyncProviderActivities`
 - `DisconnectActivityProvider`
+- `ImportProviderActivity`
 
 ## Candidate Queries
 
-- `GetProviderConnection`
 - `ListConnectedProviders`
-- `GetSyncStatus`
 
 ## Candidate Domain Events
 
-- `ProviderConnected`
-- `ProviderDisconnected`
-- `ActivityIngested`
+- `ActivityProviderConnected`
+- `ActivityProviderDisconnected`
 
 ## Acceptance Criteria
 
-- [ ] 使用者可以明確 connect / disconnect 第一個 provider。
-- [ ] 系統只取得使用者授權範圍內的 signal。
-- [ ] Provider-specific DTO 不會穿透進 Activity / Social Context domain model。
-- [ ] Provider error 會在 Integration boundary 被 translate。
-- [ ] 相同 provider item 在 overlapping page、重試或 timeout recovery 後不會重複建立 Kin Activity。
-- [ ] Dedup / idempotency 依 stable provenance / provider item identity 判斷，而不是依脆弱的顯示文字比較。
-- [ ] 自動 ingestion 會重用既有 Activity → Social Context → Privacy → Pulse flow。
-- [ ] Disconnect 後不再取得新的 provider Activity。
-- [ ] Integration 不會改變既有 Privacy rules。
+- [ ] 使用者必須明確 opt in 才會啟用 provider ingestion。
+- [ ] Provider payload 在 adapter boundary normalization。
+- [ ] Provider adapter failure 不會污染 domain state。
+- [ ] 使用者可以停止後續 ingestion。
+- [ ] External Activity 仍遵守既有 private-by-default 與 downstream privacy flow。
 
 ## Non-goals
 
-- 一次支援多個 providers
-- generic plugin marketplace
-- browser-wide surveillance
-- full ChatGPT conversation history ingestion
-- background sync optimization for every platform
-- provider-specific recommendation engine
+- 多 provider 同時整合
+- background sync optimization
+- recommendation engine
+- data resale
+- provider-specific logic 進 domain
 
 ## Dependencies
 
-- MVP 1 至 MVP 5 已經證明核心 loop 至少具有初步產品價值。
+- MVP 1 Activity
+- 核心 context → privacy → pulse → conversation loop 已有初步產品證據。
 
 ## Slice Completion Signal
 
-當 automatic activity ingestion 能降低 contribution friction、重試不產生重複 Activity，同時不破壞 privacy / domain boundaries，MVP 才算完成第一輪 ambient-loop 驗證。
+當一個 external provider 能在明確 consent 下穩定產生 normalized private Activity，且後續仍完整經過 Kin 既有 context / privacy pipeline 時，MVP 6 才具備完成條件。
 
 ---
 
-# Implementation Authorization Rules
+## MVP 之外暫不實作
 
-## 下一個 Issue 應如何選
+除非 roadmap 明確更新，以下能力不應進入目前 implementation scope：
 
-AI coding agent 不應直接把整份 roadmap 當成一張 implementation task。
-
-每次只能從 **目前 Active Slice** 中挑一個最小 coherent vertical change，建立獨立 GitHub Issue。
-
-合法順序：
-
-`Root AGENTS.md → Active GitHub Issue → applicable local AGENTS.md → Current MVP Slice → Product Scope → relevant Skills → Implementation`
-
-如果一個 proposed Issue 需要尚未 Active 或尚未完成 slice 才存在的 domain capability，該 Issue 應被視為 premature。
-
-## Slice 可以被拆成多張 Issue
-
-一個 slice 不必等於一張 Issue。
-
-例如 MVP 3 可以拆成：
-
-1. 定義最小 disclosure policy domain behavior。
-2. 產生 relationship-specific Context Projection。
-3. 建立 friend-visible query model。
-4. 補 revocation flow。
-
-但每張 Issue 都必須留下可驗證的 vertical progress，而不是只建立未被 use case 使用的 infrastructure。
-
-## Active Slice 的變更規則
-
-- 初始 Active Slice 是 MVP 0。
-- 完成某張 Issue 不會自動切換 Active Slice。
-- 當前 slice 全部 Acceptance Criteria 與 Slice Completion Signal 被驗證後，建立 roadmap PR 把 Active 標記移到下一 slice。
-- 該 roadmap PR 本身也必須通過 repository review / merge gate。
-- Agent 不得僅依 Issue 編號、unchecked checklist 或 dependency prose 自行推斷 Active Slice 已前進。
-
-## 不應建立的 Issue 類型
-
-除非有 active use case 明確需要，避免：
-
-- 「先把所有 DB tables 建好」
-- 「先完成整套 REST API」
-- 「先建立 generic event bus」
-- 「先導入 Kafka / NATS」
-- 「先拆成 microservices」
-- 「先建立 vector database」
-- 「先完成完整 provider abstraction」
-- 「先做完整 relationship hierarchy」
-
-Infrastructure 必須服務目前 user interaction，而不是為假想未來預建。
-
----
-
-# MVP Success Signals
-
-MVP 最終不是以 feature count 驗收，而是要開始能回答：
-
-- 使用者是否願意讓 meaningful activity 進入 Kin？
-- Derived context 是否比 raw activity 更有價值？
-- 使用者是否信任 relationship-aware disclosure？
-- Friend Pulse 是否真的降低理解朋友近況的成本？
-- Context 是否提升 conversation-start intent？
-- Automatic ingestion 是否提升持續使用價值，而不是只增加資料量？
-
-長期優先 metrics 仍應偏向：
-
-- Conversations Started（只在真的能確認時使用）
-- Conversation Intents Expressed
-- Friendships Maintained
-- Dormant Friendships Reactivated
-- 使用者是否覺得更了解 close friends 最近在意什麼
-
-DAU、session time、feed impression 不應成為 Kin MVP 的主要成功定義。
-
----
-
-# 明確不在本 MVP Roadmap 的 Future Scope
-
-以下能力仍保留在 Product Scope，但沒有被本 MVP 自動授權：
-
-- 完整 Relationship Level hierarchy
+- Relationship Level hierarchy
 - Friendship Drift Detection
+- Social Memory
 - Weekly Friendship Digest
 - Shared Rabbit Hole
-- Social Memory
 - AI Friendship Concierge
-- Friend-aware AI Q&A
-- rich notification strategy
-- widgets / app intents / ambient surfaces
-- 多 provider integrations
-- public / acquaintance-scale social graph
-
-若未來要實作，必須有新的 validation hypothesis、active GitHub Issue 與對應 architecture / privacy review。
-
----
-
-## 文件閱讀順序
-
-任何 coding agent 在開始工作前，必須先遵守 root agent contract，而不是先由本文件決定 scope。
-
-閱讀與決策順序：
-
-1. Root `AGENTS.md`
-2. Current active GitHub Issue（含 Acceptance Criteria / Non-goals）
-3. Nearest applicable local `AGENTS.md`（若存在）
-4. 本文件中的 Current Active Slice
-5. `docs/product/product-scope.md`
-6. Relevant repo-local skills
-7. Implementation
-
-若內容衝突，以 root `AGENTS.md` 定義的 source-of-truth precedence 為準；本 roadmap 不可自行覆蓋 repository agent contract。
+- autonomous messaging
+- multi-agent social orchestration
+- public social graph
+- monetization / ads
