@@ -73,6 +73,13 @@ func NewGetFriendPulse(
 	return GetFriendPulse{friendships: friendships, candidates: candidates, projector: projector}
 }
 
+type projectedCandidate struct {
+	projection domainprivacy.ContextProjection
+	signalScore int
+	observedAt  time.Time
+	contextID   string
+}
+
 func (uc GetFriendPulse) Execute(ctx context.Context, query Query) (Pulse, error) {
 	viewerID, err := domainidentity.NewID(query.AuthenticatedViewerID)
 	if err != nil {
@@ -95,18 +102,8 @@ func (uc GetFriendPulse) Execute(ctx context.Context, query Query) (Pulse, error
 	if err != nil {
 		return Pulse{}, err
 	}
-	candidates = append([]Candidate(nil), candidates...)
-	sort.SliceStable(candidates, func(i, j int) bool {
-		if candidates[i].SignalScore != candidates[j].SignalScore {
-			return candidates[i].SignalScore > candidates[j].SignalScore
-		}
-		if !candidates[i].ObservedAt.Equal(candidates[j].ObservedAt) {
-			return candidates[i].ObservedAt.After(candidates[j].ObservedAt)
-		}
-		return candidates[i].SocialContextID < candidates[j].SocialContextID
-	})
 
-	pulse := Pulse{Items: make([]Item, 0, maxPulseItems)}
+	projected := make([]projectedCandidate, 0, len(candidates))
 	for _, candidate := range candidates {
 		projection, visible, err := uc.projector.Project(ctx, viewerID, friendID, candidate.SocialContextID)
 		if err != nil {
@@ -115,11 +112,31 @@ func (uc GetFriendPulse) Execute(ctx context.Context, query Query) (Pulse, error
 		if !visible {
 			continue
 		}
-		pulse.Items = append(pulse.Items, Item{Projection: projection})
-		if len(pulse.Items) == maxPulseItems {
-			break
-		}
+		projected = append(projected, projectedCandidate{
+			projection: projection,
+			signalScore: candidate.SignalScore,
+			observedAt: candidate.ObservedAt,
+			contextID: candidate.SocialContextID,
+		})
 	}
 
+	sort.SliceStable(projected, func(i, j int) bool {
+		if projected[i].signalScore != projected[j].signalScore {
+			return projected[i].signalScore > projected[j].signalScore
+		}
+		if !projected[i].observedAt.Equal(projected[j].observedAt) {
+			return projected[i].observedAt.After(projected[j].observedAt)
+		}
+		return projected[i].contextID < projected[j].contextID
+	})
+
+	limit := len(projected)
+	if limit > maxPulseItems {
+		limit = maxPulseItems
+	}
+	pulse := Pulse{Items: make([]Item, 0, limit)}
+	for _, candidate := range projected[:limit] {
+		pulse.Items = append(pulse.Items, Item{Projection: candidate.projection})
+	}
 	return pulse, nil
 }
