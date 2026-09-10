@@ -93,12 +93,39 @@ func TestGetFriendPulseProjectsCandidatesBeforeAnyRelevanceOrdering(t *testing.T
 	}
 }
 
+func TestGetFriendPulseFiltersExpiredAndRepetitionSuppressedCandidatesBeforeProjection(t *testing.T) {
+	now := time.Date(2026, time.September, 10, 1, 0, 0, 0, time.UTC)
+	calls := []string{}
+	uc := NewGetFriendPulse(
+		fakeFriendshipReader{active: true},
+		fakeCandidateReader{candidates: []Candidate{
+			{SocialContextID: "expired", SignalScore: 100, EligibleUntil: now.Add(-time.Minute)},
+			{SocialContextID: "suppressed", SignalScore: 100, RepetitionSuppressed: true},
+			{SocialContextID: "eligible", SignalScore: 50, EligibleUntil: now.Add(time.Hour)},
+		}},
+		fakeProjector{
+			projections: map[string]domainprivacy.ContextProjection{"eligible": {Meaning: "eligible"}},
+			calls:       &calls,
+		},
+	)
+	uc.now = func() time.Time { return now }
+
+	pulse, err := uc.Execute(context.Background(), Query{AuthenticatedViewerID: "viewer", FriendID: "friend"})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if len(pulse.Items) != 1 || pulse.Items[0].Projection.Meaning != "eligible" {
+		t.Fatalf("pulse = %#v, want only eligible candidate", pulse)
+	}
+	if want := []string{"eligible"}; !reflect.DeepEqual(calls, want) {
+		t.Fatalf("projection calls = %#v, want %#v; expired/suppressed candidates must be excluded by production eligibility behavior", calls, want)
+	}
+}
+
 func TestGetFriendPulseReturnsAtMostThreeVisibleProjectionsInDeterministicSignalOrder(t *testing.T) {
 	base := time.Date(2026, time.September, 5, 1, 0, 0, 0, time.UTC)
 	candidates := []Candidate{
 		{SocialContextID: "revoked", SignalScore: 100, ObservedAt: base.Add(40 * time.Minute)},
-		{SocialContextID: "expired", SignalScore: 100, ObservedAt: base.Add(30 * time.Minute)},
-		{SocialContextID: "suppressed", SignalScore: 100, ObservedAt: base.Add(20 * time.Minute)},
 		{SocialContextID: "high-new", SignalScore: 90, ObservedAt: base.Add(20 * time.Minute)},
 		{SocialContextID: "high-old", SignalScore: 90, ObservedAt: base.Add(10 * time.Minute)},
 		{SocialContextID: "medium", SignalScore: 50, ObservedAt: base.Add(30 * time.Minute)},
@@ -111,11 +138,7 @@ func TestGetFriendPulseReturnsAtMostThreeVisibleProjectionsInDeterministicSignal
 			"high-old": {Meaning: "high signal older"},
 			"medium":   {Meaning: "medium signal"},
 		},
-		notVisible: map[string]bool{
-			"revoked":    true,
-			"expired":    true,
-			"suppressed": true,
-		},
+		notVisible: map[string]bool{"revoked": true},
 	}
 	uc := NewGetFriendPulse(fakeFriendshipReader{active: true}, fakeCandidateReader{candidates: candidates}, projector)
 
