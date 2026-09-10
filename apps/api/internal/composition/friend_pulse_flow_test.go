@@ -81,10 +81,13 @@ func TestFriendPulseFlowExposesAuthenticatedDelivery(t *testing.T) {
 		t.Fatalf("candidate lookup owner = %q, want %q", candidates.owner, friendID)
 	}
 
+	// Privacy projection must run before relevance/ranking and bounding, so every
+	// candidate is projected even though the delivered pulse is capped at three.
 	wantCalls := []projectionCall{
 		{viewer: viewerID, owner: friendID, socialContextID: "context-1"},
 		{viewer: viewerID, owner: friendID, socialContextID: "context-2"},
 		{viewer: viewerID, owner: friendID, socialContextID: "context-3"},
+		{viewer: viewerID, owner: friendID, socialContextID: "context-4"},
 	}
 	if !reflect.DeepEqual(projector.calls, wantCalls) {
 		t.Fatalf("projection calls = %#v, want %#v", projector.calls, wantCalls)
