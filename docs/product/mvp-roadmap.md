@@ -73,7 +73,7 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 4 — Friend 收到有用的 Friend Pulse**。
+目前 **Active Slice：MVP 5 — Context 幫助開始真實 Conversation**。
 
 建議順序：
 
@@ -81,8 +81,8 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
 3. **MVP 2 — Activity 成為 Derived Social Context**
 4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
-5. **MVP 4 — Friend 收到有用的 Friend Pulse** ← Active
-6. **MVP 5 — Context 幫助開始真實 Conversation**
+5. **MVP 4 — Friend 收到有用的 Friend Pulse**
+6. **MVP 5 — Context 幫助開始真實 Conversation** ← Active
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
 
 這個順序代表目前的最小驗證路徑，不是永久 roadmap。
@@ -93,7 +93,11 @@ MVP 2 的 completion signal 已由 #33、#34、#35 與 #48 覆蓋，並經 #52�
 
 ### MVP 3 → MVP 4 transition evidence
 
-MVP 3 的 completion signal 已由 #60 / PR #61、#62 / PR #63 與 #64 / PR #65 覆蓋：Context Owner 可建立、修改、降低或撤銷 disclosure；authenticated active-friend read boundary 只回傳 relationship-specific `Context Projection`；pending delivery 會綁定 privacy / relationship revision，並在 dispatch-time 重新授權、重新投影或取消，避免 stale / over-detailed payload 進入可送出狀態。#70 已逐項對照 MVP 3 全部 Acceptance Criteria 與 Slice Completion Signal，未發現阻擋核心 hypothesis 的 implementation gap，因此 MVP 4 現在成為唯一 Active Slice。
+MVP 3 的 completion signal 已由 #60 / PR #61、#62 / PR #63 與 #64 / PR #65 覆蓋：Context Owner 可建立、修改、降低或撤銷 disclosure；authenticated active-friend read boundary 只回傳 relationship-specific `Context Projection`；pending delivery 會綁定 privacy / relationship revision，並在 dispatch-time 重新授權、重新投影或取消，避免 stale / over-detailed payload 進入可送出狀態。#70 已逐項對照 MVP 3 全部 Acceptance Criteria 與 Slice Completion Signal，未發現阻擋核心 hypothesis 的 implementation gap，因此 MVP 4 成為唯一 Active Slice。
+
+### MVP 4 → MVP 5 transition evidence
+
+MVP 4 的 completion signal 由 #72 / PR #73 與 #76 / PR #77 完成收斂：authenticated active friend 可取得只含 permissioned `Context Projection` 的 Friend Pulse，結果維持 bounded 1–3 個高訊號 item，revoked / expired / suppressed context 會被排除，Relevance 不接觸 privacy projection 前的敏感內容，且 interaction 不依賴 chronological feed。首次 transition PR #75 的 review 發現 non-test executable composition gap，因此當時正確撤回 activation；#76 / PR #77 隨後補齊 provider-neutral `FriendPulseFlow` executable composition boundary與 bounded visible-item contract。PR #77 squash merge commit `162cb7defe9e02c28f706a67b723507022508b5b` 已由 main CI run #526 驗證成功。#74 再次逐項 reconciliation 後，未發現其他阻擋 MVP 4 核心 hypothesis 的 implementation gap，因此 MVP 5 現在成為唯一 Active Slice；MVP 6 仍未授權。
 
 ### Active Slice 如何前進
 
