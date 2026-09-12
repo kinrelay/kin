@@ -1,10 +1,18 @@
 package composition
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+
+	applicationfriendpulse "github.com/kinrelay/kin/apps/api/internal/application/friendpulse"
+)
 
 func TestNewInMemoryFriendPulseRuntimeProvidesRunnableDelivery(t *testing.T) {
 	runtime := NewInMemoryFriendPulseRuntime()
-	if runtime.FriendPulse == (FriendPulseFlow{}) {
-		t.Fatal("runtime must expose a wired Friend Pulse delivery flow")
+
+	_, err := runtime.FriendPulse.Get(context.Background(), "viewer-1", "friend-1")
+	if !errors.Is(err, applicationfriendpulse.ErrFriendPulseUnauthorized) {
+		t.Fatalf("expected wired runtime to enforce active friendship, got %v", err)
 	}
 }
