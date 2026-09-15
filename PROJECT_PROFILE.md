@@ -26,7 +26,7 @@ Advance the currently authorized MVP slice with the smallest coherent, behavior-
 
 ## Canonical sources
 
-Read in this order:
+Source-of-truth precedence:
 
 1. Current GitHub issue and explicit acceptance criteria / non-goals.
 2. `docs/product/mvp-roadmap.md` for the authorized slice.
