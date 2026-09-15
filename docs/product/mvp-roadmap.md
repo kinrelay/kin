@@ -73,7 +73,7 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 
 ## MVP 全貌與 Active Slice
 
-目前 **Active Slice：MVP 4 — Friend 收到有用的 Friend Pulse**。
+目前 **Active Slice：MVP 5 — Context 幫助開始真實 Conversation**。
 
 建議順序：
 
@@ -81,8 +81,8 @@ Provider / LLM output 必須先在 adapter boundary normalization、validation�
 2. **MVP 1 — 使用者提供一則 Meaningful Activity**
 3. **MVP 2 — Activity 成為 Derived Social Context**
 4. **MVP 3 — Privacy 決定 Specific Friend 可以知道什麼**
-5. **MVP 4 — Friend 收到有用的 Friend Pulse** ← Active
-6. **MVP 5 — Context 幫助開始真實 Conversation**
+5. **MVP 4 — Friend 收到有用的 Friend Pulse**
+6. **MVP 5 — Context 幫助開始真實 Conversation** ← Active
 7. **MVP 6 — 第一個 External Integration 自動貢獻 Activity**
 
 這個順序代表目前的最小驗證路徑，不是永久 roadmap。
@@ -94,6 +94,10 @@ MVP 2 的 completion signal 已由 #33、#34、#35 與 #48 覆蓋，並經 #52�
 ### MVP 3 → MVP 4 transition evidence
 
 MVP 3 的 completion signal 已由 #60 / PR #61、#62 / PR #63 與 #64 / PR #65 覆蓋：Context Owner 可建立、修改、降低或撤銷 disclosure；authenticated active-friend read boundary 只回傳 relationship-specific `Context Projection`；pending delivery 會綁定 privacy / relationship revision，並在 dispatch-time 重新授權、重新投影或取消，避免 stale / over-detailed payload 進入可送出狀態。#70 已逐項對照 MVP 3 全部 Acceptance Criteria 與 Slice Completion Signal，未發現阻擋核心 hypothesis 的 implementation gap，因此 MVP 4 現在成為唯一 Active Slice。
+
+### MVP 4 → MVP 5 transition evidence
+
+MVP 4 的 completion signal 已由 #72 / PR #73、#76 / PR #77 與 #82 / PR #83 完成收斂。最終 closure evidence 確認：active friend 可以取得 permissioned Friend Pulse；privacy-specific Context Projection 先於 relevance；Pulse 維持少量 deterministic high-signal items；revoked / expired / suppressed context 不會進入結果；production tree 已有 non-test runnable in-memory Friend Pulse composition，且 authorized / inactive relationship behavior 與 privacy-before-relevance 均有 deterministic coverage。#74 已重新逐項對照 MVP 4 的 Acceptance Criteria 與 Slice Completion Signal，並以 PR #83 merge commit `f8f59bd68d1c2b6239f216cf517c615912318f97`、main CI run #550 success 作為最後 implementation closure evidence；目前沒有仍阻擋 MVP 4 核心 hypothesis 的 unresolved implementation gap，因此 MVP 5 成為唯一 Active Slice。
 
 ### Active Slice 如何前進
 
